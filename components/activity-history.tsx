@@ -27,14 +27,18 @@ function getActivityIcon(activityType: string, metadata: {
   riskScore?: number;
   riskLevel?: string;
   [key: string]: unknown;
-}) {
+} | null | undefined) {
+  const isValidMetadata = metadata && typeof metadata === 'object';
+  const gameType = isValidMetadata && 'gameType' in metadata ? metadata.gameType : null;
+  
   switch (activityType) {
     case "game-played":
-      const gameType = metadata.gameType || "";
-      if (gameType.includes("memory")) return <Brain className="h-4 w-4" />;
-      if (gameType.includes("reaction")) return <Clock className="h-4 w-4" />;
-      if (gameType.includes("visual") || gameType.includes("attention")) return <Target className="h-4 w-4" />;
-      if (gameType.includes("math")) return <Calculator className="h-4 w-4" />;
+      if (typeof gameType === 'string') {
+        if (gameType.includes("memory")) return <Brain className="h-4 w-4" />;
+        if (gameType.includes("reaction")) return <Clock className="h-4 w-4" />;
+        if (gameType.includes("visual") || gameType.includes("attention")) return <Target className="h-4 w-4" />;
+        if (gameType.includes("math")) return <Calculator className="h-4 w-4" />;
+      }
       return <Brain className="h-4 w-4" />;
     case "assessment-completed":
       return <FileText className="h-4 w-4" />;
@@ -50,7 +54,7 @@ function getActivityIcon(activityType: string, metadata: {
 }
 
 function getDifficultyColor(difficulty: string) {
-  switch (difficulty?.toLowerCase()) {
+  switch (difficulty.toLowerCase()) {
     case "easy":
       return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
     case "medium":
@@ -63,7 +67,7 @@ function getDifficultyColor(difficulty: string) {
 }
 
 function getRiskLevelColor(riskLevel: string) {
-  switch (riskLevel?.toLowerCase()) {
+  switch (riskLevel.toLowerCase()) {
     case "low":
       return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
     case "moderate":
@@ -71,7 +75,7 @@ function getRiskLevelColor(riskLevel: string) {
     case "high":
       return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
     case "very high":
-      return "bg-red-200 text-red-900 dark:bg-red-950 dark:text-red-200";
+      return "bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-200";
     default:
       return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
   }
@@ -137,15 +141,19 @@ export function ActivityHistory() {
                     {getActivityLabel(activity)}
                   </h4>
                   {activity.activityType === "game-played" && 
-                   typeof activity.metadata === 'object' && activity.metadata !== null && 
-                   'difficulty' in activity.metadata && typeof activity.metadata.difficulty === 'string' && (
+                   activity.metadata && 
+                   typeof activity.metadata === 'object' && 
+                   'difficulty' in activity.metadata && 
+                   typeof activity.metadata.difficulty === 'string' && (
                     <div className={cn("px-2 py-1 rounded-md text-xs font-medium", getDifficultyColor(activity.metadata.difficulty))}>
                       {activity.metadata.difficulty}
                     </div>
                   )}
                   {(activity.activityType === "stroke-risk-calculated" || activity.activityType === "stroke-prediction") && 
-                   typeof activity.metadata === 'object' && activity.metadata !== null && 
-                   'riskLevel' in activity.metadata && typeof activity.metadata.riskLevel === 'string' && (
+                   activity.metadata && 
+                   typeof activity.metadata === 'object' && 
+                   'riskLevel' in activity.metadata && 
+                   typeof activity.metadata.riskLevel === 'string' && (
                     <div className={cn("px-2 py-1 rounded-md text-xs font-medium", getRiskLevelColor(activity.metadata.riskLevel))}>
                       {activity.metadata.riskLevel}
                     </div>
@@ -161,8 +169,10 @@ export function ActivityHistory() {
                     </p>
                   )}
                   {(activity.activityType === "stroke-risk-calculated" || activity.activityType === "stroke-prediction") && 
-                   typeof activity.metadata === 'object' && activity.metadata !== null && 
-                   'riskScore' in activity.metadata && typeof activity.metadata.riskScore === 'number' && (
+                   activity.metadata && 
+                   typeof activity.metadata === 'object' && 
+                   'riskScore' in activity.metadata && 
+                   typeof activity.metadata.riskScore === 'number' && (
                     <p className="text-xs text-muted-foreground">
                       Risk Score: {activity.metadata.riskScore}%
                     </p>
