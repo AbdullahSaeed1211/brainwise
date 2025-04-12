@@ -6,7 +6,6 @@ import { ChevronLeft } from "lucide-react";
 
 import { UserProfile } from "@/components/user-profile";
 import { UserSettings } from "@/components/user-settings";
-import { ActivityHeatmap } from "@/components/activity-heatmap";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 
@@ -38,7 +37,6 @@ export default async function ProfilePage() {
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
         
         <TabsContent value="profile" className="space-y-4">
@@ -56,10 +54,6 @@ export default async function ProfilePage() {
         
         <TabsContent value="settings" className="space-y-4">
           <UserSettings userId={userId} />
-        </TabsContent>
-        
-        <TabsContent value="activity" className="space-y-4">
-          <ActivityHeatmap userId={userId} />
         </TabsContent>
       </Tabs>
     </div>

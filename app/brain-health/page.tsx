@@ -518,7 +518,7 @@ export default function BrainHealthLibraryPage() {
                     <CardContent className="pt-0">
                       <p className="text-sm mb-4">Evaluate your stroke risk based on health factors</p>
                       <Button size="sm" className="w-full micro-bounce" asChild>
-                        <Link href="/tools/stroke-prediction">
+                        <Link href="/stroke-prediction">
                           Calculate Risk
                         </Link>
                       </Button>

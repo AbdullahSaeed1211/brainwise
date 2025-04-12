@@ -50,7 +50,8 @@ import {
 const mainNavItems = [
   { name: "Home", href: "/" },
   { name: "Dashboard", href: "/dashboard" },
-  { name: "Profile", href: "/profile" }, 
+  { name: "Stroke Predictor", href: "/stroke-prediction", icon: <Heart className="h-4 w-4" /> },
+  { name: "AI Chatbot", href: "/chatbot", icon: <MessagesSquare className="h-4 w-4" /> }, 
 ];
 
 // Group related tools in dropdown
@@ -113,7 +114,13 @@ export function Navbar() {
                 pathname === item.href ? "text-primary" : "text-muted-foreground"
               )}
             >
-              {item.name}
+              {item.icon && (
+                <span className="flex items-center gap-1.5">
+                  {item.icon}
+                  {item.name}
+                </span>
+              )}
+              {!item.icon && item.name}
             </Link>
           ))}
 

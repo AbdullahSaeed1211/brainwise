@@ -93,7 +93,7 @@ export default function DashboardClient() {
               </Link>
             </Button>
             <Button className="w-full justify-start" size="sm" variant="outline" asChild>
-              <Link href="/tools/stroke-prediction">
+              <Link href="/stroke-prediction">
                 <Activity className="mr-2 h-4 w-4" />
                 Stroke Risk Calculator
               </Link>

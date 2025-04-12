@@ -21,6 +21,8 @@ export interface PredictionResult {
   probability: number;
   modelVersion?: string;
   inferenceTimeMs?: number;
+  riskFactors?: string[];
+  totalRiskScore?: number;
 }
 
 // Interface for normalization parameters
@@ -196,37 +198,85 @@ export async function predictStroke(
  * Temporary model based on risk factors
  */
 function predictWithTemporaryModel(data: StrokeRiskInput): PredictionResult {
-  // Count risk factors
-  const riskFactors = [];
+  // Calculate weighted risk factors
+  let totalRiskScore = 0;
+  const riskFactors: {factor: string, weight: number}[] = [];
   
-  if (data.hypertension === 1) riskFactors.push('Hypertension');
-  if (data.heartDisease === 1) riskFactors.push('Heart Disease');
-  if (data.age > 65) riskFactors.push('Age > 65');
-  if (data.smokingStatus === 'smokes') riskFactors.push('Smoking');
-  if (data.avgGlucoseLevel > 140) riskFactors.push('High Blood Glucose');
-  if (data.bmi > 30) riskFactors.push('Obesity');
-  
-  const riskCount = riskFactors.length;
-  
-  // Simple logic based on risk factor count
-  let probability: number;
-  
-  if (riskCount === 0) {
-    probability = 0.05;
-  } else if (riskCount === 1) {
-    probability = 0.15;
-  } else if (riskCount === 2) {
-    probability = 0.30;
-  } else if (riskCount === 3) {
-    probability = 0.60;
-  } else {
-    probability = 0.80;
+  // Major risk factors (higher weights)
+  if (data.hypertension === 1) {
+    riskFactors.push({factor: 'Hypertension', weight: 0.20});
+    totalRiskScore += 0.20;
   }
+  
+  if (data.heartDisease === 1) {
+    riskFactors.push({factor: 'Heart Disease', weight: 0.25});
+    totalRiskScore += 0.25;
+  }
+  
+  // Age is a critical factor with non-linear risk
+  if (data.age > 75) {
+    riskFactors.push({factor: 'Age > 75', weight: 0.25});
+    totalRiskScore += 0.25;
+  } else if (data.age > 65) {
+    riskFactors.push({factor: 'Age > 65', weight: 0.15});
+    totalRiskScore += 0.15;
+  } else if (data.age > 55) {
+    riskFactors.push({factor: 'Age > 55', weight: 0.10});
+    totalRiskScore += 0.10;
+  } else if (data.age > 45) {
+    riskFactors.push({factor: 'Age > 45', weight: 0.05});
+    totalRiskScore += 0.05;
+  }
+  
+  // Smoking status with differentiated risk
+  if (data.smokingStatus === 'smokes') {
+    riskFactors.push({factor: 'Current Smoker', weight: 0.15});
+    totalRiskScore += 0.15;
+  } else if (data.smokingStatus === 'formerly smoked') {
+    riskFactors.push({factor: 'Former Smoker', weight: 0.08});
+    totalRiskScore += 0.08;
+  }
+  
+  // Glucose levels with graduated risk
+  if (data.avgGlucoseLevel > 200) {
+    riskFactors.push({factor: 'Very High Blood Glucose', weight: 0.20});
+    totalRiskScore += 0.20;
+  } else if (data.avgGlucoseLevel > 140) {
+    riskFactors.push({factor: 'High Blood Glucose', weight: 0.15});
+    totalRiskScore += 0.15;
+  } else if (data.avgGlucoseLevel > 110) {
+    riskFactors.push({factor: 'Elevated Blood Glucose', weight: 0.05});
+    totalRiskScore += 0.05;
+  }
+  
+  // BMI categories
+  if (data.bmi > 35) {
+    riskFactors.push({factor: 'Severe Obesity', weight: 0.15});
+    totalRiskScore += 0.15;
+  } else if (data.bmi > 30) {
+    riskFactors.push({factor: 'Obesity', weight: 0.10});
+    totalRiskScore += 0.10;
+  } else if (data.bmi > 25) {
+    riskFactors.push({factor: 'Overweight', weight: 0.05});
+    totalRiskScore += 0.05;
+  }
+  
+  // Gender factor (males slightly higher risk)
+  if (data.gender === 'Male') {
+    riskFactors.push({factor: 'Male Gender', weight: 0.05});
+    totalRiskScore += 0.05;
+  }
+  
+  // Apply sigmoid function to create probability curve
+  // This creates more reasonable probability distribution
+  const probability = 1 / (1 + Math.exp(-5 * (totalRiskScore - 0.5)));
   
   return {
     prediction: getRiskCategory(probability),
     probability,
-    modelVersion: 'placeholder',
+    riskFactors: riskFactors.map(rf => rf.factor), // Optional: include risk factors for UI
+    totalRiskScore,
+    modelVersion: 'enhanced-placeholder-v2',
     inferenceTimeMs: 5 // Nominal value for the placeholder model
   };
 } 

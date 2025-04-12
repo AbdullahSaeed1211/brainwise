@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 interface ExportData {
   [key: string]: string | number | boolean | null | undefined;
@@ -48,6 +48,11 @@ export function ExportButton({
       }
     } catch (error) {
       console.error("Export failed:", error);
+      toast({
+        title: "Export Failed",
+        description: "There was a problem exporting your data. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsExporting(false);
     }
@@ -91,21 +96,103 @@ export function ExportButton({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    toast({
+      title: "CSV Export Complete",
+      description: "Your data has been exported as a CSV file.",
+      variant: "default",
+    });
   };
 
   const exportAsPDF = () => {
-    // This is a placeholder - you would implement PDF export using a library like jsPDF or html2pdf
-    console.log("PDF export not implemented yet");
-    if (onExport) onExport("pdf");
+    if (data.length === 0) {
+      toast({
+        title: "No data to export",
+        description: "There is no data available to export. Add measurements or complete assessments first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Create a stylized HTML table from the data
+    const headers = Object.keys(data[0]);
+    const htmlContent = `
+      <html>
+        <head>
+          <title>${filename}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1 { color: #333; text-align: center; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { background-color: #4f46e5; color: white; font-weight: bold; }
+            th, td { padding: 10px; text-align: left; border: 1px solid #ddd; }
+            tr:nth-child(even) { background-color: #f9fafb; }
+            .footer { margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <h1>${filename}</h1>
+          <table>
+            <thead>
+              <tr>${headers.map(header => `<th>${header}</th>`).join('')}</tr>
+            </thead>
+            <tbody>
+              ${data.map(row => `
+                <tr>
+                  ${headers.map(header => `<td>${row[header] !== null && row[header] !== undefined ? row[header] : ''}</td>`).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="footer">
+            <p>Generated on ${new Date().toLocaleDateString()} by Brainwise</p>
+          </div>
+        </body>
+      </html>
+    `;
+    
+    // Create a Blob with the HTML content
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    
+    // Open the HTML in a new window/tab
+    const printWindow = window.open(url, '_blank');
+    if (printWindow) {
+      // Add script to trigger print when content is loaded
+      printWindow.onload = function() {
+        printWindow.document.title = `${filename}.pdf`;
+        printWindow.print();
+        
+        // Close the window after print dialog is closed (works in most browsers)
+        printWindow.onafterprint = function() {
+          printWindow.close();
+        };
+      };
+    }
+    
+    toast({
+      title: "PDF Export Ready",
+      description: "The print dialog will open for saving your data as PDF.",
+      variant: "default",
+    });
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" className="flex items-center gap-2" disabled={isExporting}>
-          <FileDown className="h-4 w-4" />
-          {label}
-          <ChevronDown className="h-4 w-4" />
+          {isExporting ? (
+            <>
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Exporting...
+            </>
+          ) : (
+            <>
+              <FileDown className="h-4 w-4" />
+              {label}
+              <ChevronDown className="h-4 w-4" />
+            </>
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>

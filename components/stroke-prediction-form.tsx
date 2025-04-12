@@ -19,8 +19,12 @@ interface FormData {
 
 interface PredictionResult {
   risk: number;
-  factors?: string[];
+  prediction?: string;
+  probability?: number;
+  riskFactors?: string[];
   recommendations?: string[];
+  modelVersion?: string;
+  totalRiskScore?: number;
 }
 
 interface StrokeRiskInput {
@@ -37,26 +41,137 @@ interface StrokeRiskInput {
 }
 
 async function predictStroke(input: StrokeRiskInput): Promise<PredictionResult> {
-  await new Promise(resolve => setTimeout(resolve, 500));
+  try {
+    const response = await fetch('/api/stroke/predict', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get prediction from API');
+    }
+
+    const data = await response.json();
+    
+    // Generate personalized recommendations based on risk factors
+    const recommendations = generateRecommendations(data.riskFactors || []);
+    
+    return { 
+      risk: data.probability || 0,
+      prediction: data.prediction,
+      probability: data.probability,
+      riskFactors: data.riskFactors || [],
+      recommendations,
+      modelVersion: data.modelVersion,
+      totalRiskScore: data.totalRiskScore
+    };
+  } catch (error) {
+    console.error('Error predicting stroke risk:', error);
+    // Fallback to local model if API fails
+    return fallbackPrediction(input);
+  }
+}
+
+// Generate personalized recommendations based on risk factors
+function generateRecommendations(riskFactors: string[]): string[] {
+  const recommendations: string[] = [];
   
+  if (riskFactors.includes('Hypertension')) {
+    recommendations.push('Monitor your blood pressure regularly and follow your doctor\'s recommendations for management.');
+  }
+  
+  if (riskFactors.includes('Heart Disease')) {
+    recommendations.push('Continue to follow your cardiologist\'s treatment plan and attend regular check-ups.');
+  }
+  
+  if (riskFactors.includes('Current Smoker')) {
+    recommendations.push('Consider a smoking cessation program to reduce your stroke risk significantly.');
+  }
+  
+  if (riskFactors.includes('Former Smoker')) {
+    recommendations.push('Great job quitting smoking! Continue to avoid tobacco to further reduce your risk.');
+  }
+  
+  if (riskFactors.includes('Very High Blood Glucose') || riskFactors.includes('High Blood Glucose') || riskFactors.includes('Elevated Blood Glucose')) {
+    recommendations.push('Consult with your doctor about managing your blood glucose levels through diet, exercise, and medication if necessary.');
+  }
+  
+  if (riskFactors.includes('Severe Obesity') || riskFactors.includes('Obesity') || riskFactors.includes('Overweight')) {
+    recommendations.push('Working towards a healthy weight through diet and exercise can significantly reduce your stroke risk.');
+  }
+  
+  // Basic recommendations everyone should follow
+  if (recommendations.length === 0) {
+    recommendations.push('Continue maintaining your healthy lifestyle to keep your stroke risk low.');
+  }
+  
+  recommendations.push('Aim for at least 150 minutes of moderate physical activity weekly.');
+  recommendations.push('Follow a diet rich in fruits, vegetables, whole grains, and low in saturated fats.');
+  
+  return recommendations;
+}
+
+// Fallback prediction if API fails
+function fallbackPrediction(input: StrokeRiskInput): PredictionResult {
   let risk = 0;
+  const riskFactors: string[] = [];
   
-  if (input.age > 65) risk += 0.25;
-  else if (input.age > 55) risk += 0.15;
-  else if (input.age > 45) risk += 0.05;
+  if (input.age > 65) {
+    risk += 0.25;
+    riskFactors.push('Age > 65');
+  } else if (input.age > 55) {
+    risk += 0.15;
+    riskFactors.push('Age > 55');
+  } else if (input.age > 45) {
+    risk += 0.05;
+    riskFactors.push('Age > 45');
+  }
   
-  if (input.hypertension === 1) risk += 0.2;
-  if (input.heartDisease === 1) risk += 0.2;
+  if (input.hypertension === 1) {
+    risk += 0.2;
+    riskFactors.push('Hypertension');
+  }
   
-  if (input.smokingStatus === "smokes") risk += 0.15;
-  else if (input.smokingStatus === "formerly smoked") risk += 0.05;
+  if (input.heartDisease === 1) {
+    risk += 0.2;
+    riskFactors.push('Heart Disease');
+  }
   
-  if (input.bmi > 30) risk += 0.1;
-  if (input.avgGlucoseLevel > 140) risk += 0.15;
+  if (input.smokingStatus === "smokes") {
+    risk += 0.15;
+    riskFactors.push('Current Smoker');
+  } else if (input.smokingStatus === "formerly smoked") {
+    risk += 0.05;
+    riskFactors.push('Former Smoker');
+  }
+  
+  if (input.bmi > 30) {
+    risk += 0.1;
+    riskFactors.push('Obesity');
+  }
+  
+  if (input.avgGlucoseLevel > 140) {
+    risk += 0.15;
+    riskFactors.push('High Blood Glucose');
+  }
   
   risk = Math.min(Math.max(risk, 0.05), 0.95);
   
-  return { risk };
+  // Get recommendations based on risk factors
+  const recommendations = generateRecommendations(riskFactors);
+  
+  return { 
+    risk,
+    prediction: risk < 0.2 ? 'Low Risk' : risk < 0.4 ? 'Moderate Risk' : risk < 0.7 ? 'High Risk' : 'Very High Risk',
+    probability: risk,
+    riskFactors,
+    recommendations,
+    modelVersion: 'fallback-v1',
+    totalRiskScore: risk
+  };
 }
 
 export function StrokePredictionForm() {
@@ -76,15 +191,6 @@ export function StrokePredictionForm() {
   const [result, setResult] = useState<PredictionResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-
-  const hasNoRiskFactors = () => {
-    return formData.hypertension !== 1 && 
-           formData.heartDisease !== 1 && 
-           formData.age <= 65 && 
-           formData.smokingStatus !== "smokes" && 
-           formData.avgGlucoseLevel <= 140 && 
-           formData.bmi <= 30;
-  };
 
   useEffect(() => {
     toast({
@@ -147,6 +253,13 @@ export function StrokePredictionForm() {
       setIsLoading(false);
       form.classList.remove("opacity-70");
     }
+  };
+
+  const getRiskLevel = (risk: number) => {
+    if (risk < 0.2) return { label: "Low Risk", color: "text-green-600", bgColor: "bg-green-100" };
+    if (risk < 0.4) return { label: "Moderate Risk", color: "text-yellow-600", bgColor: "bg-yellow-100" };
+    if (risk < 0.7) return { label: "High Risk", color: "text-orange-600", bgColor: "bg-orange-100" };
+    return { label: "Very High Risk", color: "text-red-600", bgColor: "bg-red-100" };
   };
 
   return (
@@ -347,117 +460,110 @@ export function StrokePredictionForm() {
           <button
             type="submit"
             disabled={isLoading}
-            className="micro-bounce interactive px-5 py-2.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors duration-200 font-medium flex items-center justify-center min-w-[150px]"
+            className={`w-full py-3 rounded-md bg-primary text-primary-foreground shadow hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all
+              ${isLoading ? "opacity-70 cursor-not-allowed" : ""}`}
           >
-            {isLoading ? (
-              <>
-                <svg 
-                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  fill="none" 
-                  viewBox="0 0 24 24"
-                >
-                  <circle 
-                    className="opacity-25" 
-                    cx="12" 
-                    cy="12" 
-                    r="10" 
-                    stroke="currentColor" 
-                    strokeWidth="4"
-                  ></circle>
-                  <path 
-                    className="opacity-75" 
-                    fill="currentColor" 
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Processing...
-              </>
-            ) : "Analyze Risk"}
+            {isLoading ? "Analyzing..." : "Calculate Stroke Risk"}
           </button>
         </div>
       </form>
 
       {result && (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 mt-8 p-6 bg-card rounded-lg border shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Analysis Results</h2>
-          
-          <div className="flex items-center mb-4">
-            <div 
-              className={`w-14 h-14 rounded-full flex items-center justify-center ${
-                result.risk < 0.2 ? "bg-green-100 text-green-700" : 
-                result.risk < 0.5 ? "bg-yellow-100 text-yellow-700" : 
-                "bg-red-100 text-red-700"
-              }`}
-            >
-              {result.risk < 0.2 ? (
-                <CheckCircle className="h-8 w-8" />
-              ) : result.risk < 0.5 ? (
-                <AlertTriangle className="h-8 w-8" />
-              ) : (
-                <AlertCircle className="h-8 w-8" />
-              )}
+        <div 
+          className="results-container space-y-6 rounded-lg border p-6 animate-fadeIn transition-all" 
+          style={{ opacity: 1 }}
+        >
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold">Your Risk Assessment</h2>
+            
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between">
+              <div className="flex flex-col space-y-1">
+                <span className="text-sm">
+                  AI Model: <span className="font-medium">{result.modelVersion || "Standard"}</span>
+                </span>
+              </div>
+              
+              <div className={`flex items-center px-4 py-2 rounded-full ${getRiskLevel(result.risk).bgColor}`}>
+                <span className={`text-sm font-semibold ${getRiskLevel(result.risk).color}`}>
+                  {result.prediction || getRiskLevel(result.risk).label}
+                </span>
+              </div>
             </div>
             
-            <div className="ml-4">
-              <h3 className="text-lg font-medium">
-                {result.risk < 0.2 ? "Low Risk" : 
-                 result.risk < 0.5 ? "Moderate Risk" : 
-                 "High Risk"}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Estimated risk score: {(result.risk * 100).toFixed(1)}%
-              </p>
+            <div className="mt-4">
+              <div className="relative pt-1">
+                <div className="flex mb-2 items-center justify-between">
+                  <div>
+                    <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full bg-primary text-primary-foreground">
+                      Risk Level
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full bg-primary text-primary-foreground">
+                      {Math.round(result.risk * 100)}%
+                    </span>
+                  </div>
+                </div>
+                <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200 dark:bg-gray-700">
+                  <div 
+                    style={{ width: `${Math.round(result.risk * 100)}%` }}
+                    className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
+                      result.risk < 0.2 
+                        ? "bg-green-500" 
+                        : result.risk < 0.4 
+                        ? "bg-yellow-500" 
+                        : result.risk < 0.7 
+                        ? "bg-orange-500" 
+                        : "bg-red-500"
+                    }`}
+                  ></div>
+                </div>
+              </div>
             </div>
           </div>
           
-          <div className="mt-4 space-y-4">
-            <h4 className="font-medium">Key Risk Factors:</h4>
-            <ul className="space-y-2 pl-5 list-disc text-sm">
-              {formData.hypertension === 1 && (
-                <li>Hypertension significantly increases stroke risk</li>
-              )}
-              {formData.heartDisease === 1 && (
-                <li>Heart disease is a major risk factor</li>
-              )}
-              {formData.age > 65 && (
-                <li>Age over 65 increases vulnerability</li>
-              )}
-              {formData.smokingStatus === "smokes" && (
-                <li>Current smoking habits increase risk</li>
-              )}
-              {formData.avgGlucoseLevel > 140 && (
-                <li>Elevated glucose levels suggest possible diabetes risk</li>
-              )}
-              {formData.bmi > 30 && (
-                <li>BMI indicating obesity increases risk</li>
-              )}
-              {hasNoRiskFactors() && (
-                <li>No major risk factors identified</li>
-              )}
-            </ul>
-            
-            <h4 className="font-medium mt-4">Recommendations:</h4>
-            <ul className="space-y-2 pl-5 list-disc text-sm">
-              {formData.hypertension === 1 && (
-                <li>Continue monitoring and managing blood pressure</li>
-              )}
-              {formData.heartDisease === 1 && (
-                <li>Follow your cardiac care plan and medications</li>
-              )}
-              {formData.smokingStatus === "smokes" && (
-                <li>Consider smoking cessation programs</li>
-              )}
-              {formData.bmi > 30 && (
-                <li>Focus on weight management through diet and exercise</li>
-              )}
-              {formData.avgGlucoseLevel > 140 && (
-                <li>Monitor blood glucose and consult about diabetes management</li>
-              )}
-              <li>Maintain a heart-healthy diet rich in fruits, vegetables, and whole grains</li>
-              <li>Engage in regular physical activity (aim for 150 minutes weekly)</li>
-              <li>Schedule regular check-ups with your healthcare provider</li>
-            </ul>
+          {/* Show risk factors */}
+          {result.riskFactors && result.riskFactors.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold">Risk Factors Identified</h3>
+              <div className="bg-muted p-4 rounded-md">
+                <ul className="space-y-2">
+                  {result.riskFactors.map((factor, idx) => (
+                    <li key={idx} className="flex items-start">
+                      <AlertCircle className="h-5 w-5 text-primary mr-2 flex-shrink-0 mt-0.5" />
+                      <span>{factor}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+          
+          {/* Recommendations section */}
+          {result.recommendations && result.recommendations.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold">Personalized Recommendations</h3>
+              <div className="bg-muted p-4 rounded-md">
+                <ul className="space-y-2">
+                  {result.recommendations.map((rec, idx) => (
+                    <li key={idx} className="flex items-start">
+                      <CheckCircle className="h-5 w-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
+                      <span>{rec}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+          
+          <div className="pt-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              <p className="italic">
+                <AlertTriangle className="h-4 w-4 inline-block mr-1 text-yellow-600" />
+                This is a preliminary risk assessment tool and should not replace professional medical advice. 
+                Please consult with your healthcare provider to discuss your stroke risk and prevention strategies.
+              </p>
+            </div>
           </div>
         </div>
       )}

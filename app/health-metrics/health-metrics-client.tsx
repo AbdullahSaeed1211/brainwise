@@ -190,7 +190,7 @@ export default function HealthMetricsClient() {
             </CardContent>
             <CardFooter className="flex flex-wrap gap-3 justify-between">
               <Button variant="outline" size="sm" className="flex items-center">
-                <Link href="/tools/stroke-prediction" className="flex items-center">
+                <Link href="/stroke-prediction" className="flex items-center">
                   Stroke Risk Assessment
                   <ArrowUpRight className="ml-1 h-3 w-3" />
                 </Link>

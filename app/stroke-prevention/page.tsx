@@ -310,7 +310,7 @@ export default function StrokePreventionPage() {
 
             <div className="text-center pt-4">
               <Button size="lg" className="micro-bounce" asChild>
-                <Link href="/tools/stroke-prediction">
+                <Link href="/stroke-prediction">
                   Assess Your Stroke Risk
                 </Link>
               </Button>
@@ -338,7 +338,7 @@ export default function StrokePreventionPage() {
                     <CardContent className="pt-0">
                       <p className="text-sm mb-4">Input your health data to receive a personalized stroke risk assessment.</p>
                       <Button size="sm" className="w-full micro-bounce" asChild>
-                        <Link href="/tools/stroke-prediction">
+                        <Link href="/stroke-prediction">
                           Get Your Risk Score
                         </Link>
                       </Button>

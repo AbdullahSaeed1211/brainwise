@@ -410,6 +410,13 @@ export default function ToolsPage() {
             </div>
           ) : (
             <Tabs defaultValue="training" value={activeCategory} onValueChange={setActiveCategory}>
+              <TabsList className="hidden">
+                <TabsTrigger value="training">Training</TabsTrigger>
+                <TabsTrigger value="assessment">Assessment</TabsTrigger>
+                <TabsTrigger value="tracking">Tracking</TabsTrigger>
+                <TabsTrigger value="education">Education</TabsTrigger>
+              </TabsList>
+              
               <TabsContent value="training" className="mt-0">
                 <div className="space-y-6">
                   <h2 className="text-2xl font-semibold text-primary">{getCategoryTitle("training")}</h2>
@@ -670,4 +677,4 @@ export default function ToolsPage() {
       </div>
     </div>
   );
-} 
+}

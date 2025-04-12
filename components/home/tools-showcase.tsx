@@ -11,22 +11,26 @@ export function ToolsShowcase() {
     {
       icon: <Brain className="h-6 w-6 text-primary" />,
       title: "Memory Challenge",
-      description: "Enhance your memory and recall abilities"
+      description: "Enhance your memory and recall abilities",
+      href: "/tools/memory-game"
     },
     {
       icon: <Activity className="h-6 w-6 text-primary" />,
       title: "Reaction Time",
-      description: "Test and improve your processing speed"
+      description: "Test and improve your processing speed",
+      href: "/tools/reaction-test"
     },
     {
       icon: <Zap className="h-6 w-6 text-primary" />,
       title: "Focus Trainer",
-      description: "Sharpen your attention and concentration"
+      description: "Sharpen your attention and concentration",
+      href: "/tools"
     },
     {
       icon: <Scale className="h-6 w-6 text-primary" />,
       title: "Risk Assessment",
-      description: "Evaluate your brain health risk factors"
+      description: "Evaluate your brain health risk factors",
+      href: "/stroke-prediction"
     }
   ];
 
@@ -61,7 +65,7 @@ export function ToolsShowcase() {
               viewport={{ once: true, margin: "-50px" }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
-              <Link href="/tools" className="block h-full">
+              <Link href={tool.href} className="block h-full">
                 <Card className="h-full border hover:border-primary/50 transition-all hover:shadow-md">
                   <CardHeader>
                     <motion.div 

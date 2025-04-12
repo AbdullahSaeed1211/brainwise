@@ -4,6 +4,12 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { predictStroke, type StrokeRiskInput } from "@/lib/stroke-model";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { InfoIcon, HeartPulse, Activity } from "lucide-react";
 
 interface FormData {
   gender: string;
@@ -40,14 +46,10 @@ export function StrokeForm() {
   const [result, setResult] = useState<PredictionResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value, type } = e.target as HTMLInputElement;
-    
+  const handleChange = (name: string, value: string | number) => {
     setFormData({
       ...formData,
-      [name]: type === "number" ? parseFloat(value) : value,
+      [name]: value,
     });
   };
 
@@ -83,343 +85,309 @@ export function StrokeForm() {
     }
   };
 
-  // Helper function to check if no risk factors are present
-  const hasNoRiskFactors = () => {
-    return formData.hypertension !== 1 && 
-           formData.heartDisease !== 1 && 
-           formData.age <= 65 && 
-           formData.smokingStatus !== "smokes" && 
-           formData.avgGlucoseLevel <= 140 && 
-           formData.bmi <= 30;
-  };
-
   return (
-    <div className="magic-card">
-      <div className="p-4 sm:p-6">
+    <Card className="w-full shadow-md border-2 border-muted/30 dark:bg-gray-950/50 bg-white/50 backdrop-blur-sm">
+      <CardHeader>
+        <CardTitle className="text-center flex items-center justify-center gap-2">
+          <HeartPulse className="h-5 w-5 text-primary" />
+          Risk Assessment Form
+        </CardTitle>
+        <CardDescription className="text-center">Fill in your information to calculate stroke risk</CardDescription>
+      </CardHeader>
+      <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {/* Gender */}
-            <div className="space-y-2">
-              <label
-                htmlFor="gender"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Gender
-              </label>
-              <select
-                id="gender"
-                name="gender"
-                value={formData.gender}
-                onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-400 dark:focus-visible:ring-gray-600"
-              >
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-
-            {/* Age */}
-            <div className="space-y-2">
-              <label
-                htmlFor="age"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Age
-              </label>
-              <input
-                id="age"
-                name="age"
-                type="number"
-                min="0"
-                max="120"
-                value={formData.age}
-                onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-400 dark:focus-visible:ring-gray-600"
-              />
-            </div>
-
-            {/* Hypertension */}
-            <div className="space-y-2">
-              <label
-                htmlFor="hypertension"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Hypertension
-              </label>
-              <select
-                id="hypertension"
-                name="hypertension"
-                value={formData.hypertension}
-                onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-400 dark:focus-visible:ring-gray-600"
-              >
-                <option value="0">No</option>
-                <option value="1">Yes</option>
-              </select>
-            </div>
-
-            {/* Heart Disease */}
-            <div className="space-y-2">
-              <label
-                htmlFor="heartDisease"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Heart Disease
-              </label>
-              <select
-                id="heartDisease"
-                name="heartDisease"
-                value={formData.heartDisease}
-                onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-400 dark:focus-visible:ring-gray-600"
-              >
-                <option value="0">No</option>
-                <option value="1">Yes</option>
-              </select>
-            </div>
-
-            {/* Ever Married */}
-            <div className="space-y-2">
-              <label
-                htmlFor="everMarried"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Ever Married
-              </label>
-              <select
-                id="everMarried"
-                name="everMarried"
-                value={formData.everMarried}
-                onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-400 dark:focus-visible:ring-gray-600"
-              >
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </div>
-
-            {/* Work Type */}
-            <div className="space-y-2">
-              <label
-                htmlFor="workType"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Work Type
-              </label>
-              <select
-                id="workType"
-                name="workType"
-                value={formData.workType}
-                onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-400 dark:focus-visible:ring-gray-600"
-              >
-                <option value="Private">Private</option>
-                <option value="Self-employed">Self-employed</option>
-                <option value="Govt_job">Government Job</option>
-                <option value="children">Children</option>
-                <option value="Never_worked">Never Worked</option>
-              </select>
-            </div>
-
-            {/* Residence Type */}
-            <div className="space-y-2">
-              <label
-                htmlFor="residenceType"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Residence Type
-              </label>
-              <select
-                id="residenceType"
-                name="residenceType"
-                value={formData.residenceType}
-                onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-400 dark:focus-visible:ring-gray-600"
-              >
-                <option value="Urban">Urban</option>
-                <option value="Rural">Rural</option>
-              </select>
-            </div>
-
-            {/* Average Glucose Level */}
-            <div className="space-y-2">
-              <label
-                htmlFor="avgGlucoseLevel"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Average Glucose Level (mg/dL)
-              </label>
-              <input
-                id="avgGlucoseLevel"
-                name="avgGlucoseLevel"
-                type="number"
-                min="50"
-                max="300"
-                value={formData.avgGlucoseLevel}
-                onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-400 dark:focus-visible:ring-gray-600"
-              />
-            </div>
-
-            {/* BMI */}
-            <div className="space-y-2">
-              <label
-                htmlFor="bmi"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                BMI
-              </label>
-              <input
-                id="bmi"
-                name="bmi"
-                type="number"
-                min="10"
-                max="50"
-                step="0.1"
-                value={formData.bmi}
-                onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-400 dark:focus-visible:ring-gray-600"
-              />
-            </div>
-
-            {/* Smoking Status */}
-            <div className="space-y-2 sm:col-span-2">
-              <label
-                htmlFor="smokingStatus"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Smoking Status
-              </label>
-              <select
-                id="smokingStatus"
-                name="smokingStatus"
-                value={formData.smokingStatus}
-                onChange={handleChange}
-                className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-50 dark:placeholder:text-gray-400 dark:focus-visible:ring-gray-600"
-              >
-                <option value="never smoked">Never Smoked</option>
-                <option value="formerly smoked">Formerly Smoked</option>
-                <option value="smokes">Current Smoker</option>
-                <option value="unknown">Unknown</option>
-              </select>
-            </div>
-          </div>
-
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isLoading}
-          >
-            {isLoading ? "Analyzing..." : "Predict Stroke Risk"}
-          </Button>
-        </form>
-
-        {result && (
-          <div className="mt-6 rounded-lg bg-card p-4 shadow-sm">
-            <h3 className="text-lg font-medium text-card-foreground mb-2">Result</h3>
-            
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-medium">Risk Level:</span>
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-xs font-medium",
-                      result.prediction === "Very Low Risk"
-                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                        : result.prediction === "Low Risk"
-                        ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
-                        : result.prediction === "Moderate Risk"
-                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
-                        : result.prediction === "High Risk"
-                        ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300"
-                        : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-                    )}
+          <TooltipProvider>
+            {/* Personal Information Section */}
+            <div className="space-y-4 rounded-lg border p-4">
+              <h3 className="text-sm font-medium text-primary">Personal Information</h3>
+              
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {/* Gender */}
+                <div className="space-y-2">
+                  <Label htmlFor="gender">Gender</Label>
+                  <Select 
+                    value={formData.gender} 
+                    onValueChange={(value) => handleChange('gender', value)}
                   >
-                    {result.prediction}
-                  </span>
+                    <SelectTrigger id="gender">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Age */}
+                <div className="space-y-2">
+                  <Label htmlFor="age">Age</Label>
+                  <Input
+                    id="age"
+                    type="number"
+                    min="0"
+                    max="120"
+                    value={formData.age}
+                    onChange={(e) => handleChange('age', parseInt(e.target.value))}
+                  />
+                </div>
+
+                {/* Ever Married */}
+                <div className="space-y-2">
+                  <Label htmlFor="everMarried">
+                    Marital Status
+                  </Label>
+                  <Select 
+                    value={formData.everMarried} 
+                    onValueChange={(value) => handleChange('everMarried', value)}
+                  >
+                    <SelectTrigger id="everMarried">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yes">Ever Married</SelectItem>
+                      <SelectItem value="no">Never Married</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Residence Type */}
+                <div className="space-y-2">
+                  <Label htmlFor="residenceType">Residence Type</Label>
+                  <Select 
+                    value={formData.residenceType} 
+                    onValueChange={(value) => handleChange('residenceType', value)}
+                  >
+                    <SelectTrigger id="residenceType">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Urban">Urban</SelectItem>
+                      <SelectItem value="Rural">Rural</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 
-                <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                  <div
-                    className={cn(
-                      "h-2.5 rounded-full",
-                      result.prediction === "Very Low Risk"
-                        ? "bg-green-500"
-                        : result.prediction === "Low Risk"
-                        ? "bg-blue-500"
-                        : result.prediction === "Moderate Risk"
-                        ? "bg-yellow-500"
-                        : result.prediction === "High Risk"
-                        ? "bg-orange-500"
-                        : "bg-red-500"
-                    )}
-                    style={{ width: `${result.probability * 100}%` }}
-                  ></div>
+                {/* Work Type */}
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="workType">Work Type</Label>
+                  <Select 
+                    value={formData.workType} 
+                    onValueChange={(value) => handleChange('workType', value)}
+                  >
+                    <SelectTrigger id="workType">
+                      <SelectValue placeholder="Select work type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Private">Private</SelectItem>
+                      <SelectItem value="Self-employed">Self-employed</SelectItem>
+                      <SelectItem value="Govt_job">Government Job</SelectItem>
+                      <SelectItem value="children">Children</SelectItem>
+                      <SelectItem value="Never_worked">Never Worked</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                
-                <p className="text-xs text-muted-foreground mt-1">
-                  Estimated probability: {(result.probability * 100).toFixed(1)}%
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">Risk Factors:</h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  {formData.hypertension === 1 && (
-                    <li className="flex items-center">
-                      <span className="h-1.5 w-1.5 rounded-full bg-red-500 mr-2"></span>
-                      Hypertension
-                    </li>
-                  )}
-                  {formData.heartDisease === 1 && (
-                    <li className="flex items-center">
-                      <span className="h-1.5 w-1.5 rounded-full bg-red-500 mr-2"></span>
-                      Heart Disease
-                    </li>
-                  )}
-                  {formData.age > 65 && (
-                    <li className="flex items-center">
-                      <span className="h-1.5 w-1.5 rounded-full bg-red-500 mr-2"></span>
-                      Age over 65
-                    </li>
-                  )}
-                  {formData.smokingStatus === "smokes" && (
-                    <li className="flex items-center">
-                      <span className="h-1.5 w-1.5 rounded-full bg-red-500 mr-2"></span>
-                      Current Smoker
-                    </li>
-                  )}
-                  {formData.avgGlucoseLevel > 140 && (
-                    <li className="flex items-center">
-                      <span className="h-1.5 w-1.5 rounded-full bg-red-500 mr-2"></span>
-                      High Glucose Level
-                    </li>
-                  )}
-                  {formData.bmi > 30 && (
-                    <li className="flex items-center">
-                      <span className="h-1.5 w-1.5 rounded-full bg-red-500 mr-2"></span>
-                      High BMI
-                    </li>
-                  )}
-                  {hasNoRiskFactors() && (
-                    <li className="flex items-center text-gray-500">
-                      No major risk factors identified
-                    </li>
-                  )}
-                </ul>
-              </div>
-              
-              <div className="text-sm">
-                <p className="text-muted-foreground italic">
-                  This is a screening tool and not a medical diagnosis. Please consult a healthcare professional for proper evaluation.
-                </p>
               </div>
             </div>
+
+            {/* Health Metrics Section */}
+            <div className="space-y-4 rounded-lg border p-4">
+              <h3 className="text-sm font-medium text-primary">Health Information</h3>
+              
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {/* Hypertension */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1">
+                    <Label htmlFor="hypertension">Hypertension</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoIcon className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        High blood pressure, typically considered as readings consistently above 130/80 mmHg
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Select 
+                    value={formData.hypertension.toString()} 
+                    onValueChange={(value) => handleChange('hypertension', parseInt(value))}
+                  >
+                    <SelectTrigger id="hypertension">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">No</SelectItem>
+                      <SelectItem value="1">Yes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Heart Disease */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1">
+                    <Label htmlFor="heartDisease">Heart Disease</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoIcon className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        Any condition affecting the heart, including coronary artery disease, heart failure, arrhythmias, etc.
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Select 
+                    value={formData.heartDisease.toString()} 
+                    onValueChange={(value) => handleChange('heartDisease', parseInt(value))}
+                  >
+                    <SelectTrigger id="heartDisease">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">No</SelectItem>
+                      <SelectItem value="1">Yes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Average Glucose Level */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1">
+                    <Label htmlFor="avgGlucoseLevel">Avg. Glucose Level (mg/dL)</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoIcon className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        Normal fasting glucose is typically between 70-100 mg/dL
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Input
+                    id="avgGlucoseLevel"
+                    type="number"
+                    min="0"
+                    value={formData.avgGlucoseLevel}
+                    onChange={(e) => handleChange('avgGlucoseLevel', parseFloat(e.target.value))}
+                  />
+                </div>
+
+                {/* BMI */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1">
+                    <Label htmlFor="bmi">BMI</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoIcon className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        Body Mass Index - Normal range is 18.5-24.9
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Input
+                    id="bmi"
+                    type="number"
+                    min="0"
+                    value={formData.bmi}
+                    onChange={(e) => handleChange('bmi', parseFloat(e.target.value))}
+                  />
+                </div>
+
+                {/* Smoking Status */}
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="smokingStatus">Smoking Status</Label>
+                  <Select 
+                    value={formData.smokingStatus} 
+                    onValueChange={(value) => handleChange('smokingStatus', value)}
+                  >
+                    <SelectTrigger id="smokingStatus">
+                      <SelectValue placeholder="Select smoking status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="never smoked">Never Smoked</SelectItem>
+                      <SelectItem value="formerly smoked">Formerly Smoked</SelectItem>
+                      <SelectItem value="smokes">Currently Smokes</SelectItem>
+                      <SelectItem value="Unknown">Unknown</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </TooltipProvider>
+
+          <div className="pt-4">
+            <Button 
+              type="submit" 
+              disabled={isLoading} 
+              className="w-full py-6 text-lg font-medium"
+            >
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Processing...
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Predict Stroke Risk
+                </div>
+              )}
+            </Button>
           </div>
-        )}
-      </div>
-    </div>
+        </form>
+      </CardContent>
+
+      {result && (
+        <CardFooter className="flex flex-col space-y-4 border-t p-6 mt-8">
+          <div className="w-full">
+            <h3 className="text-lg font-semibold text-center">Assessment Result</h3>
+            <div className={cn(
+              "mt-4 p-4 rounded-lg text-center",
+              result.prediction === "1" 
+                ? "bg-red-100 dark:bg-red-900/20 border border-red-200 dark:border-red-800" 
+                : "bg-green-100 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+            )}>
+              <p className="text-lg font-semibold mb-2">
+                {result.prediction === "1"
+                  ? "Higher Risk of Stroke Detected"
+                  : "Lower Risk of Stroke Detected"}
+              </p>
+              <p className={cn(
+                "text-sm",
+                result.prediction === "1" ? "text-red-700 dark:text-red-300" : "text-green-700 dark:text-green-300"
+              )}>
+                Probability: {(result.probability * 100).toFixed(2)}%
+              </p>
+            </div>
+          </div>
+          
+          <div className="w-full p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
+            <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2">Recommendations:</h4>
+            <ul className="list-disc pl-5 text-sm space-y-1 text-blue-700 dark:text-blue-200">
+              {result.prediction === "1" ? (
+                <>
+                  <li>Consult with a healthcare professional to discuss your risk factors</li>
+                  <li>Consider lifestyle modifications such as diet and exercise</li>
+                  <li>Monitor your blood pressure and glucose levels regularly</li>
+                  <li>If you smoke, consider cessation programs</li>
+                </>
+              ) : (
+                <>
+                  <li>Continue with healthy lifestyle habits</li>
+                  <li>Regular health check-ups are still recommended</li>
+                  <li>Maintain a balanced diet and regular exercise routine</li>
+                  <li>Monitor your health metrics annually</li>
+                </>
+              )}
+            </ul>
+          </div>
+          
+          <Button onClick={() => setResult(null)} variant="outline" className="mt-4">
+            Make Another Assessment
+          </Button>
+        </CardFooter>
+      )}
+    </Card>
   );
 } 
