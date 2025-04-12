@@ -137,6 +137,7 @@ export async function GET(req: NextRequest) {
           user = await User.create({
             clerkId: userId,
             email: userInfo.emailAddresses[0]?.emailAddress,
+            name: `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'User',
             firstName: userInfo.firstName || '',
             lastName: userInfo.lastName || '',
             imageUrl: userInfo.imageUrl,

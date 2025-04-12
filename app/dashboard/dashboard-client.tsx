@@ -8,14 +8,68 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ActivityHistory } from "@/components/activity-history";
 import { CognitiveScoreCard } from "@/components/cognitive-score-card";
 import { DailyChallenge } from "@/components/daily-challenge";
-import { Brain, Activity, FileText, Zap, Target, Info } from "lucide-react";
+import { Brain, Activity, FileText, Zap, Target, Info, Heart, TrendingUp, History } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@clerk/nextjs";
+import { format } from "date-fns";
+
+// Define health metrics types
+interface HealthMetric {
+  _id: string;
+  type: string;
+  value: string;
+  date: string;
+}
+
+// Simple component for metric visualization
+const MetricCard = ({ 
+  title, 
+  value, 
+  unit, 
+  icon, 
+  date, 
+  change 
+}: { 
+  title: string; 
+  value: string; 
+  unit: string; 
+  icon: React.ReactNode;
+  date: string;
+  change?: { value: number; isPositive: boolean; }; 
+}) => (
+  <div className="flex flex-col p-4 border rounded-lg bg-background">
+    <div className="flex justify-between items-start mb-2">
+      <div className="flex items-center gap-2">
+        <div className="bg-primary/10 p-2 rounded-full">
+          {icon}
+        </div>
+        <span className="font-medium">{title}</span>
+      </div>
+      {change && (
+        <div className={`text-xs px-1.5 py-0.5 rounded-full flex items-center ${
+          change.isPositive ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" :
+          "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+        }`}>
+          <span>{change.isPositive ? "↑" : "↓"} {Math.abs(change.value)}%</span>
+        </div>
+      )}
+    </div>
+    <div className="flex items-baseline gap-1 mt-2">
+      <span className="text-2xl font-bold">{value}</span>
+      <span className="text-sm text-muted-foreground">{unit}</span>
+    </div>
+    <div className="mt-auto pt-2 text-xs text-muted-foreground flex justify-between items-center">
+      <span>Last updated: {format(new Date(date), "MMM d")}</span>
+      <Link href="/health-metrics" className="text-primary hover:underline text-xs">Details</Link>
+    </div>
+  </div>
+);
 
 export default function DashboardClient() {
   const { isLoaded, isSignedIn } = useUser();
   const [isLoading, setIsLoading] = useState(true);
+  const [healthMetrics, setHealthMetrics] = useState<HealthMetric[]>([]);
   const { toast } = useToast();
 
   // Fetch user data when component mounts
@@ -26,13 +80,20 @@ export default function DashboardClient() {
       try {
         setIsLoading(true);
         
-        // Fetch activities and assessments
-        await Promise.all([
+        // Fetch activities, assessments, and health metrics
+        const responses = await Promise.all([
           fetch('/api/user/activity?limit=5'),
-          fetch('/api/user/assessments?limit=5')
+          fetch('/api/user/assessments?limit=5'),
+          fetch('/api/health-metrics?limit=10')
         ]).catch(error => {
           console.error('API request failed:', error);
         });
+        
+        // Extract health metrics if available
+        if (responses && responses[2] && responses[2].ok) {
+          const healthData = await responses[2].json();
+          setHealthMetrics(healthData.metrics || []);
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         toast({
@@ -47,6 +108,17 @@ export default function DashboardClient() {
 
     fetchDashboardData();
   }, [isLoaded, isSignedIn, toast]);
+
+  // Get the most recent metric of a specific type
+  const getLatestMetric = (type: string) => {
+    const metrics = healthMetrics.filter(m => m.type === type);
+    return metrics.length > 0 ? metrics[0] : null;
+  };
+
+  const bloodPressure = getLatestMetric('blood_pressure');
+  const heartRate = getLatestMetric('heart_rate');
+  const weight = getLatestMetric('weight');
+  const sleep = getLatestMetric('sleep');
 
   return (
     <div className="container px-4 py-6 md:py-10">
@@ -107,6 +179,96 @@ export default function DashboardClient() {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Health Metrics Card */}
+      <Card className="mb-6">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Health Metrics</CardTitle>
+              <CardDescription>Your key health indicators</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/health-metrics">
+                View All
+              </Link>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-[140px] w-full rounded-lg" />
+              ))}
+            </div>
+          ) : healthMetrics.length === 0 ? (
+            <div className="text-center py-8">
+              <Heart className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
+              <h3 className="text-lg font-medium mb-2">No Health Metrics Yet</h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
+                Track important health indicators to monitor your brain health risk factors.
+              </p>
+              <Button asChild>
+                <Link href="/health-metrics">Add Health Metrics</Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              {bloodPressure && (
+                <MetricCard
+                  title="Blood Pressure"
+                  value={bloodPressure.value}
+                  unit="mmHg"
+                  icon={<Heart className="h-4 w-4 text-primary" />}
+                  date={bloodPressure.date}
+                  change={{ value: 3, isPositive: false }}
+                />
+              )}
+              
+              {heartRate && (
+                <MetricCard
+                  title="Heart Rate"
+                  value={heartRate.value}
+                  unit="bpm"
+                  icon={<Activity className="h-4 w-4 text-primary" />}
+                  date={heartRate.date}
+                  change={{ value: 2, isPositive: true }}
+                />
+              )}
+              
+              {weight && (
+                <MetricCard
+                  title="Weight"
+                  value={weight.value}
+                  unit="kg"
+                  icon={<TrendingUp className="h-4 w-4 text-primary" />}
+                  date={weight.date}
+                />
+              )}
+              
+              {sleep && (
+                <MetricCard
+                  title="Sleep"
+                  value={sleep.value}
+                  unit="hours"
+                  icon={<History className="h-4 w-4 text-primary" />}
+                  date={sleep.date}
+                  change={{ value: 8, isPositive: true }}
+                />
+              )}
+              
+              {!bloodPressure && !heartRate && !weight && !sleep && (
+                <div className="col-span-full text-center py-6">
+                  <p className="text-sm text-muted-foreground">
+                    No health metrics data available. <Link href="/health-metrics" className="text-primary hover:underline">Add your first metric</Link>.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
       
       <Tabs defaultValue="activity" className="space-y-4">
         <TabsList>

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Progress } from "@/components/ui/progress";
 import { Clock, CheckCircle2, AlertTriangle, Brain } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SocialShare } from "@/components/social-share";
 
 type Difficulty = "easy" | "medium" | "hard";
 type Operation = "add" | "subtract" | "multiply" | "divide" | "mixed";
@@ -462,6 +463,7 @@ export function MentalMathChallenge() {
       
       case "completed":
         const score = calculateScore();
+        const shareText = `I scored ${score} points in the Mental Math Challenge (${difficulty} difficulty, ${operation} operations)!`;
         return (
           <div className="space-y-6">
             <Card>
@@ -508,13 +510,20 @@ export function MentalMathChallenge() {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-between">
+              <CardFooter className="flex justify-between items-center">
                 <Button variant="outline" onClick={() => setGameState("idle")}>
                   Change Settings
                 </Button>
-                <Button onClick={startGame}>
-                  Try Again
-                </Button>
+                <div className="flex gap-2">
+                  <SocialShare 
+                    title="Mental Math Challenge Results" 
+                    text={shareText}
+                    hashtags={["mentalmath", "braintraining", "cognitivefitness"]}
+                  />
+                  <Button onClick={startGame}>
+                    Try Again
+                  </Button>
+                </div>
               </CardFooter>
             </Card>
           </div>

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, PlusCircle, Target, Trophy, Calendar, Check } from "lucide-react";
+import { ArrowLeft, PlusCircle, Target, Trophy, Calendar, Check, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { FormItem, FormLabel } from "@/components/ui/form";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Slider } from "@/components/ui/slider";
 
 interface Goal {
   id: number;
@@ -32,10 +34,48 @@ export default function GoalsClient() {
   const [goalDescription, setGoalDescription] = useState("");
   const [goalCategory, setGoalCategory] = useState("memory");
   const [targetDate, setTargetDate] = useState<Date | undefined>(undefined);
+  const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
+  const [newProgress, setNewProgress] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  // Check if any goals exist
-  const hasGoals = goals.length > 0;
+  // Load goals from localStorage on initial load
+  useEffect(() => {
+    const fetchGoals = async () => {
+      try {
+        const storedGoals = localStorage.getItem('brainwise_goals');
+        if (storedGoals) {
+          const parsedGoals = JSON.parse(storedGoals);
+          // Convert string dates back to Date objects
+          const goalsWithDates = parsedGoals.map((goal: Goal & {targetDate: string, createdAt: string}) => ({
+            ...goal,
+            targetDate: new Date(goal.targetDate),
+            createdAt: new Date(goal.createdAt)
+          }));
+          setGoals(goalsWithDates);
+        }
+      } catch (error) {
+        console.error("Error loading goals:", error);
+        toast({
+          title: "Error loading goals",
+          description: "Your goals couldn't be loaded. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchGoals();
+  }, [toast]);
+
+  // Save goals to localStorage whenever they change
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem('brainwise_goals', JSON.stringify(goals));
+    }
+  }, [goals, isLoading]);
 
   const handleCreateGoal = () => {
     if (!goalTitle || !goalCategory || !targetDate) {
@@ -71,6 +111,43 @@ export default function GoalsClient() {
       description: "Your cognitive improvement goal has been set.",
     });
   };
+
+  const handleUpdateProgress = (goal: Goal) => {
+    setSelectedGoal(goal);
+    setNewProgress(goal.progress);
+    setIsUpdatingProgress(true);
+  };
+
+  const saveProgressUpdate = () => {
+    if (!selectedGoal) return;
+    
+    const updatedGoals = goals.map(g => 
+      g.id === selectedGoal.id 
+        ? { ...g, progress: newProgress } 
+        : g
+    );
+    
+    setGoals(updatedGoals);
+    setIsUpdatingProgress(false);
+    
+    toast({
+      title: "Progress updated",
+      description: `Progress for "${selectedGoal.title}" has been updated to ${newProgress}%.`,
+    });
+  };
+
+  const handleDeleteGoal = (goalId: number) => {
+    const updatedGoals = goals.filter(g => g.id !== goalId);
+    setGoals(updatedGoals);
+    
+    toast({
+      title: "Goal deleted",
+      description: "The goal has been removed from your list.",
+    });
+  };
+
+  // Check if any goals exist
+  const hasGoals = goals.length > 0;
 
   const categoryOptions = [
     { value: "memory", label: "Memory Enhancement" },
@@ -120,7 +197,12 @@ export default function GoalsClient() {
               </Button>
             </CardHeader>
             <CardContent>
-              {hasGoals ? (
+              {isLoading ? (
+                <div className="text-center py-8">
+                  <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                  <p className="mt-2 text-sm text-muted-foreground">Loading your goals...</p>
+                </div>
+              ) : hasGoals ? (
                 <div className="space-y-4">
                   {goals.map((goal) => (
                     <div key={goal.id} className="border rounded-lg p-4">
@@ -129,7 +211,17 @@ export default function GoalsClient() {
                           <h3 className="font-medium">{goal.title}</h3>
                           <p className="text-sm text-muted-foreground">{goal.description || "No description provided."}</p>
                         </div>
-                        <Badge variant="outline" className="capitalize">{goal.category}</Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="capitalize">{goal.category}</Badge>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-destructive" 
+                            onClick={() => handleDeleteGoal(goal.id)}
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
@@ -142,7 +234,13 @@ export default function GoalsClient() {
                             <Calendar className="h-4 w-4 mr-1" />
                             <span>Target: {goal.targetDate.toLocaleDateString()}</span>
                           </div>
-                          <Button size="sm" variant="outline">Update Progress</Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleUpdateProgress(goal)}
+                          >
+                            Update Progress
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -309,6 +407,42 @@ export default function GoalsClient() {
           </Card>
         </div>
       </div>
+
+      {/* Progress Update Dialog */}
+      <Dialog open={isUpdatingProgress} onOpenChange={setIsUpdatingProgress}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Update Goal Progress</DialogTitle>
+            <DialogDescription>
+              Set your current progress for &quot;{selectedGoal?.title}&quot;
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="progress">Progress Percentage</Label>
+              <div className="space-y-4">
+                <Slider
+                  id="progress"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={[newProgress]}
+                  onValueChange={(value) => setNewProgress(value[0])}
+                />
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">0%</span>
+                  <span className="font-medium">{newProgress}%</span>
+                  <span className="text-sm text-muted-foreground">100%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsUpdatingProgress(false)}>Cancel</Button>
+            <Button onClick={saveProgressUpdate}>Save Progress</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

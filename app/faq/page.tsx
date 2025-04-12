@@ -29,7 +29,7 @@ export default function FAQPage() {
           <div className="flex justify-center overflow-x-auto pb-2 scrollbar-hide">
             <TabsList className="mb-8">
               <TabsTrigger value="general" className="text-sm sm:text-base px-3 sm:px-4">General</TabsTrigger>
-              <TabsTrigger value="account" className="text-sm sm:text-base px-3 sm:px-4">Account & Billing</TabsTrigger>
+              <TabsTrigger value="account" className="text-sm sm:text-base px-3 sm:px-4">Account</TabsTrigger>
               <TabsTrigger value="tools" className="text-sm sm:text-base px-3 sm:px-4">Tools & Features</TabsTrigger>
               <TabsTrigger value="health" className="text-sm sm:text-base px-3 sm:px-4">Brain Health</TabsTrigger>
               <TabsTrigger value="data" className="text-sm sm:text-base px-3 sm:px-4">Data & Privacy</TabsTrigger>
@@ -99,38 +99,24 @@ export default function FAQPage() {
           <TabsContent value="account" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Account & Billing</CardTitle>
-                <CardDescription>Managing your account and subscription</CardDescription>
+                <CardTitle>Account</CardTitle>
+                <CardDescription>Managing your account</CardDescription>
               </CardHeader>
               <CardContent>
                 <Accordion type="single" collapsible className="w-full">
                   <AccordionItem value="free-vs-premium">
-                    <AccordionTrigger>What&apos;s the difference between free and premium accounts?</AccordionTrigger>
+                    <AccordionTrigger>What features are included in Brainwise?</AccordionTrigger>
                     <AccordionContent>
-                      <p>Our free account includes:</p>
+                      <p>Brainwise is completely free and includes all of these features:</p>
                       <ul className="list-disc pl-6 mt-2 mb-4 space-y-1">
-                        <li>Basic cognitive assessments</li>
-                        <li>Limited access to brain training exercises</li>
+                        <li>Comprehensive cognitive assessments</li>
+                        <li>Full access to all brain training exercises</li>
                         <li>Stroke risk calculator</li>
-                        <li>Basic educational content</li>
-                      </ul>
-                      
-                      <p>Premium accounts include everything in the free tier plus:</p>
-                      <ul className="list-disc pl-6 mt-2 space-y-1">
-                        <li>Comprehensive cognitive assessment with detailed analysis</li>
-                        <li>Unlimited access to all brain training exercises</li>
                         <li>Personalized brain health recommendations</li>
                         <li>Advanced progress tracking and data visualization</li>
-                        <li>Exclusive premium content and resources</li>
-                        <li>Priority customer support</li>
+                        <li>Educational content and resources</li>
+                        <li>Customer support</li>
                       </ul>
-                    </AccordionContent>
-                  </AccordionItem>
-                  
-                  <AccordionItem value="cancel-subscription">
-                    <AccordionTrigger>How do I cancel my subscription?</AccordionTrigger>
-                    <AccordionContent>
-                      You can cancel your subscription at any time by going to your Account Settings and selecting the Subscription tab. Click on &quot;Cancel Subscription&quot; and follow the prompts. Your premium access will continue until the end of your current billing period. After cancellation, your account will revert to the free tier, but you won&apos;t lose any of your data.
                     </AccordionContent>
                   </AccordionItem>
                   

@@ -24,10 +24,21 @@ export function ChatInterface() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom of messages
+  // Auto-scroll to bottom of messages when new messages are added
+  // But maintain scroll position when user is scrolling up
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Get the container and check if user is at or near the bottom
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    
+    const isAtBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 100;
+    
+    // Only auto-scroll if user is already at the bottom
+    if (isAtBottom) {
+      messagesEndRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
   }, [messages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -90,7 +101,13 @@ export function ChatInterface() {
         <h3 className="font-medium">Chat with Brain Health Assistant</h3>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div 
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth"
+        tabIndex={0} // Make container focusable for keyboard accessibility
+        aria-live="polite" // Announce new messages
+        aria-label="Chat messages"
+      >
         {messages.map((message) => (
           <div
             key={message.id}
@@ -100,6 +117,8 @@ export function ChatInterface() {
                 ? "ml-auto bg-primary text-primary-foreground"
                 : "bg-muted"
             )}
+            role="article"
+            aria-label={`${message.role} message`}
           >
             <p>{message.content}</p>
             <span className="text-xs mt-2 opacity-70">
@@ -112,7 +131,11 @@ export function ChatInterface() {
         ))}
         
         {isLoading && (
-          <div className="flex items-center space-x-2 max-w-[80%] rounded-lg p-4 bg-muted">
+          <div 
+            className="flex items-center space-x-2 max-w-[80%] rounded-lg p-4 bg-muted"
+            aria-live="assertive"
+            role="status"
+          >
             <div className="flex space-x-1">
               <div className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce" />
               <div className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce delay-75" />
@@ -134,11 +157,13 @@ export function ChatInterface() {
             placeholder="Type your question about brain health..."
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={isLoading}
+            aria-label="Message input"
           />
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+            aria-label="Send message"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -151,6 +176,7 @@ export function ChatInterface() {
               strokeLinecap="round"
               strokeLinejoin="round"
               className="h-4 w-4"
+              aria-hidden="true"
             >
               <path d="m22 2-7 20-4-9-9-4Z" />
               <path d="M22 2 11 13" />

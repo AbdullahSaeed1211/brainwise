@@ -7,6 +7,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 
 type Message = {
   role: "user" | "assistant";
@@ -15,6 +16,7 @@ type Message = {
 };
 
 export function Chatbot() {
+  const { user } = useUser();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -25,11 +27,22 @@ export function Chatbot() {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom on new messages or when loading changes
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    // Use a small timeout to ensure the DOM has updated before scrolling
+    const timer = setTimeout(() => {
+      if (scrollAreaRef.current) {
+        const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+        if (scrollContainer) {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        }
+      }
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [messages, isLoading]);
   
   async function handleSend() {
     if (!input.trim()) return;
@@ -88,7 +101,7 @@ export function Chatbot() {
   }
   
   return (
-    <Card className="w-full h-[700px] flex flex-col shadow-lg border-primary/10">
+    <Card className="w-full h-[500px] md:h-[600px] lg:h-[700px] flex flex-col shadow-lg border-primary/10">
       <CardHeader className="pb-4 border-b">
         <CardTitle className="text-xl flex items-center gap-2">
           <Avatar className="h-8 w-8">
@@ -102,7 +115,7 @@ export function Chatbot() {
       </CardHeader>
       
       <CardContent className="flex-1 overflow-hidden p-0">
-        <ScrollArea className="h-full px-4">
+        <ScrollArea ref={scrollAreaRef} className="h-full px-4">
           <div className="space-y-4 py-4">
             {messages.map((message, i) => (
               <div 
@@ -111,7 +124,7 @@ export function Chatbot() {
                   message.role === "user" ? "justify-end" : "justify-start"
                 } animate-in fade-in-0 slide-in-from-bottom-3 duration-300`}
               >
-                <div className={`flex items-start gap-3 max-w-[85%] ${
+                <div className={`flex items-start gap-3 max-w-[90%] sm:max-w-[85%] ${
                   message.role === "user" ? "flex-row-reverse" : "flex-row"
                 }`}>
                   {message.role === "assistant" ? (
@@ -123,8 +136,18 @@ export function Chatbot() {
                     </Avatar>
                   ) : (
                     <Avatar className="h-8 w-8 mt-1 flex-shrink-0">
+                      {user ? (
+                        <AvatarImage 
+                          src={user.imageUrl} 
+                          alt={user.fullName || "User"} 
+                          onError={(e) => {
+                            // Hide the broken image and show the fallback
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      ) : null}
                       <AvatarFallback className="bg-secondary text-secondary-foreground">
-                        U
+                        {user?.firstName?.charAt(0) || user?.fullName?.charAt(0) || "U"}
                       </AvatarFallback>
                     </Avatar>
                   )}
@@ -203,6 +226,7 @@ export function Chatbot() {
             size="icon"
             disabled={isLoading || !input.trim()}
             className="h-[60px] w-[60px] rounded-full"
+            aria-label="Send message"
           >
             <Send className="h-5 w-5" />
           </Button>

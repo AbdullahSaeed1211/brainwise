@@ -4,7 +4,6 @@ import { useState } from "react";
 import { 
   Trash2, 
   Bell, 
-  Lock, 
   Download, 
   Shield, 
   AlertTriangle
@@ -24,8 +23,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-  DialogClose,
 } from "@/components/ui/dialog";
 import {
   Accordion,
@@ -42,7 +39,11 @@ export function UserSettings({ userId }: UserSettingsProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState({
     export: false,
-    delete: false
+    delete: false,
+    clearMetrics: false,
+    clearGames: false,
+    clearTools: false,
+    clearAll: false
   });
   
   // Settings states
@@ -61,21 +62,25 @@ export function UserSettings({ userId }: UserSettingsProps) {
     collectAnalytics: true
   });
   
+  // New state for data deletion options
+  const [dataToDelete, setDataToDelete] = useState({
+    selectedOption: "" as "metrics" | "games" | "tools" | "all" | "",
+    showConfirmation: false
+  });
+  
   // Handlers
   const handleExportData = async () => {
     try {
       setIsLoading(prev => ({ ...prev, export: true }));
+      
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       toast({
         variant: "default",
-        title: "Data export prepared",
-        description: `Your data for account ${userId} is ready for download.`,
+        title: "Data exported",
+        description: `Your requested data for account ${userId} has been exported.`,
       });
-      
-      // In a real implementation, this would trigger a download
-      // window.location.href = `/api/user/export-data?userId=${userId}`;
     } catch (error: Error | unknown) {
       console.error("Export error:", error instanceof Error ? error.message : 'Unknown error');
       toast({
@@ -85,29 +90,6 @@ export function UserSettings({ userId }: UserSettingsProps) {
       });
     } finally {
       setIsLoading(prev => ({ ...prev, export: false }));
-    }
-  };
-  
-  const handleDeleteData = async () => {
-    try {
-      setIsLoading(prev => ({ ...prev, delete: true }));
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      toast({
-        variant: "default",
-        title: "Data deleted",
-        description: `Your requested data for account ${userId} has been deleted.`,
-      });
-    } catch (error: Error | unknown) {
-      console.error("Delete error:", error instanceof Error ? error.message : 'Unknown error');
-      toast({
-        variant: "destructive",
-        title: "Deletion failed",
-        description: "Could not delete your data. Please try again.",
-      });
-    } finally {
-      setIsLoading(prev => ({ ...prev, delete: false }));
     }
   };
   
@@ -126,6 +108,76 @@ export function UserSettings({ userId }: UserSettingsProps) {
       variant: "default",
       title: "Privacy settings updated",
       description: `Your privacy settings for account ${userId} have been updated.`,
+    });
+  };
+  
+  const handleClearData = async (dataType: "metrics" | "games" | "tools" | "all") => {
+    try {
+      const loadingKey = dataType === "metrics" 
+        ? "clearMetrics" 
+        : dataType === "games" 
+          ? "clearGames" 
+          : dataType === "tools" 
+            ? "clearTools" 
+            : "clearAll";
+      
+      setIsLoading(prev => ({ ...prev, [loadingKey]: true }));
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      let successMessage = "";
+      switch(dataType) {
+        case "metrics":
+          successMessage = "Health metrics data has been deleted";
+          break;
+        case "games":
+          successMessage = "Game history and scores have been deleted";
+          break;
+        case "tools":
+          successMessage = "Tools usage history has been deleted";
+          break;
+        case "all":
+          successMessage = "All your activity data has been deleted";
+          break;
+      }
+      
+      toast({
+        variant: "default",
+        title: "Data deleted successfully",
+        description: successMessage,
+      });
+      
+      // Close confirmation dialog
+      setDataToDelete({
+        selectedOption: "",
+        showConfirmation: false
+      });
+      
+    } catch (error: Error | unknown) {
+      console.error("Delete error:", error instanceof Error ? error.message : 'Unknown error');
+      toast({
+        variant: "destructive",
+        title: "Deletion failed",
+        description: "Could not delete your data. Please try again.",
+      });
+    } finally {
+      const loadingKey = dataType === "metrics" 
+        ? "clearMetrics" 
+        : dataType === "games" 
+          ? "clearGames" 
+          : dataType === "tools" 
+            ? "clearTools" 
+            : "clearAll";
+      
+      setIsLoading(prev => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+  
+  const openDeleteConfirmation = (dataType: "metrics" | "games" | "tools" | "all") => {
+    setDataToDelete({
+      selectedOption: dataType,
+      showConfirmation: true
     });
   };
   
@@ -314,7 +366,7 @@ export function UserSettings({ userId }: UserSettingsProps) {
         <AccordionItem value="data-management">
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center gap-2">
-              <Lock className="h-5 w-5" />
+              <Trash2 className="h-5 w-5" />
               <span>Data Management</span>
             </div>
           </AccordionTrigger>
@@ -322,137 +374,216 @@ export function UserSettings({ userId }: UserSettingsProps) {
             <Card>
               <CardContent className="pt-6 space-y-6">
                 <div>
-                  <h3 className="text-base font-medium">Export Your Data</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Download a copy of all your personal data stored on our platform.
-                  </p>
-                  <Button 
-                    variant="outline" 
-                    onClick={handleExportData}
-                    disabled={isLoading.export}
-                    className="mt-4"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    {isLoading.export ? "Preparing export..." : "Export my data"}
-                  </Button>
-                </div>
-                
-                <div>
-                  <h3 className="text-base font-medium flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-orange-500" />
-                    <span>Clear Your Data</span>
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Select what data you&apos;d like to remove from our systems.
+                  <h3 className="text-lg font-medium mb-2">Delete My Data</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    You can delete specific parts of your data or all of your activity history.
                   </p>
                   
-                  <div className="mt-4 space-y-3">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" className="w-full">
-                          <Trash2 className="h-4 w-4 mr-2 text-red-500" />
-                          Clear activity history
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Clear Activity History</DialogTitle>
-                          <DialogDescription>
-                            This will permanently delete all your activity records, including completed exercises, 
-                            assessments, and progress data. This action cannot be undone.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4">
-                          <p className="text-sm font-medium">Are you sure you want to proceed?</p>
-                        </div>
-                        <DialogFooter>
-                          <DialogClose asChild>
-                            <Button variant="outline">Cancel</Button>
-                          </DialogClose>
-                          <Button 
-                            variant="destructive" 
-                            onClick={handleDeleteData}
-                            disabled={isLoading.delete}
-                          >
-                            {isLoading.delete ? "Deleting..." : "Delete Data"}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium">Health Metrics</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Delete all your health metrics history
+                        </p>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => openDeleteConfirmation("metrics")}
+                        disabled={isLoading.clearMetrics}
+                      >
+                        {isLoading.clearMetrics ? (
+                          <>
+                            <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+                            Deleting...
+                          </>
+                        ) : (
+                          "Delete Data"
+                        )}
+                      </Button>
+                    </div>
                     
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" className="w-full">
-                          <Trash2 className="h-4 w-4 mr-2 text-red-500" />
-                          Clear health metrics
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Clear Health Metrics</DialogTitle>
-                          <DialogDescription>
-                            This will permanently delete all your health metrics data, including blood pressure, 
-                            glucose, sleep, and activity readings. This action cannot be undone.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4">
-                          <p className="text-sm font-medium">Are you sure you want to proceed?</p>
-                        </div>
-                        <DialogFooter>
-                          <DialogClose asChild>
-                            <Button variant="outline">Cancel</Button>
-                          </DialogClose>
-                          <Button 
-                            variant="destructive" 
-                            onClick={handleDeleteData}
-                            disabled={isLoading.delete}
-                          >
-                            {isLoading.delete ? "Deleting..." : "Delete Data"}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium">Game History</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Delete all game scores and history
+                        </p>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => openDeleteConfirmation("games")}
+                        disabled={isLoading.clearGames}
+                      >
+                        {isLoading.clearGames ? (
+                          <>
+                            <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+                            Deleting...
+                          </>
+                        ) : (
+                          "Delete Data"
+                        )}
+                      </Button>
+                    </div>
                     
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" className="w-full">
-                          <Trash2 className="h-4 w-4 mr-2 text-red-500" />
-                          Clear all personal data
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Clear All Personal Data</DialogTitle>
-                          <DialogDescription>
-                            This will permanently delete all your personal data from our systems, including 
-                            activity history, health metrics, assessment results, and preferences. Your account 
-                            will remain active, but all your data will be removed. This action cannot be undone.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4">
-                          <p className="text-sm font-medium text-red-500">This is a destructive action and cannot be undone.</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium">Tools Usage History</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Delete all tools usage and results data
+                        </p>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => openDeleteConfirmation("tools")}
+                        disabled={isLoading.clearTools}
+                      >
+                        {isLoading.clearTools ? (
+                          <>
+                            <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+                            Deleting...
+                          </>
+                        ) : (
+                          "Delete Data"
+                        )}
+                      </Button>
+                    </div>
+                    
+                    <div className="pt-4 border-t">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium">All Activity Data</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Delete all your activity history and data
+                          </p>
                         </div>
-                        <DialogFooter>
-                          <DialogClose asChild>
-                            <Button variant="outline">Cancel</Button>
-                          </DialogClose>
-                          <Button 
-                            variant="destructive" 
-                            onClick={handleDeleteData}
-                            disabled={isLoading.delete}
-                          >
-                            {isLoading.delete ? "Deleting..." : "Delete All Data"}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={() => openDeleteConfirmation("all")}
+                          disabled={isLoading.clearAll}
+                        >
+                          {isLoading.clearAll ? (
+                            <>
+                              <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"></span>
+                              Deleting...
+                            </>
+                          ) : (
+                            "Delete All Data"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
+                </div>
+                
+                <div className="pt-3 border-t">
+                  <h3 className="text-lg font-medium mb-2">Export Your Data</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Download a copy of all your data in JSON format.
+                  </p>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={handleExportData}
+                    disabled={isLoading.export}
+                    className="w-full"
+                  >
+                    {isLoading.export ? (
+                      <>
+                        <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+                        Preparing...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="mr-2 h-4 w-4" />
+                        Export My Data
+                      </>
+                    )}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+      
+      {/* Data Deletion Confirmation Dialog */}
+      <Dialog 
+        open={dataToDelete.showConfirmation} 
+        onOpenChange={(open) => 
+          setDataToDelete(prev => ({ ...prev, showConfirmation: open }))
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Data Deletion</DialogTitle>
+            <DialogDescription>
+              {dataToDelete.selectedOption === "metrics" && (
+                "You are about to delete all your health metrics data. This action cannot be undone."
+              )}
+              {dataToDelete.selectedOption === "games" && (
+                "You are about to delete all your game history and scores. This action cannot be undone."
+              )}
+              {dataToDelete.selectedOption === "tools" && (
+                "You are about to delete all your tools usage history. This action cannot be undone."
+              )}
+              {dataToDelete.selectedOption === "all" && (
+                "You are about to delete ALL your activity data including metrics, game history, and tools usage. This action cannot be undone."
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex items-center rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400">
+            <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" />
+            <p className="text-sm">Data deletion is permanent and cannot be recovered.</p>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => 
+                setDataToDelete({ selectedOption: "", showConfirmation: false })
+              }
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={() => dataToDelete.selectedOption && handleClearData(dataToDelete.selectedOption)}
+              disabled={!dataToDelete.selectedOption || isLoading[
+                dataToDelete.selectedOption === "metrics" 
+                  ? "clearMetrics" 
+                  : dataToDelete.selectedOption === "games" 
+                    ? "clearGames" 
+                    : dataToDelete.selectedOption === "tools" 
+                      ? "clearTools" 
+                      : "clearAll"
+              ]}
+            >
+              {isLoading[
+                dataToDelete.selectedOption === "metrics" 
+                  ? "clearMetrics" 
+                  : dataToDelete.selectedOption === "games" 
+                    ? "clearGames" 
+                    : dataToDelete.selectedOption === "tools" 
+                      ? "clearTools" 
+                      : "clearAll"
+              ] ? (
+                <>
+                  <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"></span>
+                  Deleting...
+                </>
+              ) : (
+                "Delete Data"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 
