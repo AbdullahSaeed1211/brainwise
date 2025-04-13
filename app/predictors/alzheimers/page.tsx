@@ -14,6 +14,7 @@ import { uploadFile } from "@uploadcare/upload-client";
 interface AlzheimersDetectionResult {
   prediction: string;
   confidence: number;
+  stage: string;
 }
 
 export default function AlzheimersDetectionPage() {
@@ -91,22 +92,27 @@ export default function AlzheimersDetectionPage() {
     setResult(null);
 
     try {
-      console.log("Starting Alzheimer's image analysis process");
+      console.log("🚀 Starting Alzheimer's detection analysis process...");
+      console.log(`📁 File: ${selectedFile.name} (${selectedFile.size} bytes)`);
       
       // Simulate upload progress
       setUploadProgress(0);
+      console.log("⏳ Starting file upload to Uploadcare...");
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
           if (prev >= 90) {
             clearInterval(progressInterval);
             return prev;
           }
-          return prev + 10;
+          const newProgress = prev + 10;
+          console.log(`📤 Upload progress: ${newProgress}%`);
+          return newProgress;
         });
       }, 300);
       
       // Upload file to Uploadcare using their client library directly
-      console.log("Uploading file:", selectedFile.name, selectedFile.type, selectedFile.size);
+      const uploadStartTime = Date.now();
+      console.log("📤 Uploading file to Uploadcare...");
       
       const result = await uploadFile(selectedFile, {
         publicKey: process.env.NEXT_PUBLIC_UPLOADCARE_PUBLIC_KEY || '',
@@ -119,79 +125,152 @@ export default function AlzheimersDetectionPage() {
       // Clear the progress interval and set to 100% when upload is complete
       clearInterval(progressInterval);
       setUploadProgress(100);
+      const uploadDuration = ((Date.now() - uploadStartTime) / 1000).toFixed(2);
       
       if (!result?.uuid) {
+        console.error("❌ Upload failed: No UUID returned from Uploadcare");
         throw new Error('Upload failed: No UUID returned');
       }
       
       const fileUrl = `https://ucarecdn.com/${result.uuid}/`;
-      console.log("File uploaded successfully, URL:", fileUrl);
+      console.log(`✅ File uploaded successfully in ${uploadDuration}s`);
+      console.log(`🔗 Uploadcare CDN URL: ${fileUrl}`);
       
-      // Use our API route to analyze the image
-      const formData = new FormData();
-      formData.append("fileUrl", fileUrl);
-      formData.append("scanType", "alzheimers"); // Set scan type to alzheimers
-      
-      console.log("Sending data to brain-scan API with scan type: alzheimers");
-      
-      const response = await fetch('/api/brain-scan/analyze', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      console.log("Response status:", response.status, response.statusText);
-      
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        console.error("API Error Response:", errorText);
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log("Received data from API:", data);
-      
-      // Since the server API queues the analysis, we need to poll for results
-      let analysisComplete = false;
-      let analysisResult = null;
-      
-      // Simple polling to check assessment status
-      if (data.assessmentId) {
-        for (let i = 0; i < 10; i++) { // Try up to 10 times
-          await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds between checks
+      // Determine if we should use our API route or call Hugging Face directly
+      if (true) { // Set to false to use direct Hugging Face API call
+        console.log(`🔄 Using server API for Alzheimer's detection analysis`);
+        
+        const formData = new FormData();
+        formData.append("fileUrl", fileUrl);
+        formData.append("scanType", "alzheimers");
+        
+        console.log(`📊 Sending data to /api/brain-scan/analyze endpoint`);
+        console.log(`📝 Form data: scanType=alzheimers, fileUrl=${fileUrl.substring(0, 40)}...`);
+        
+        const analysisStartTime = Date.now();
+        const response = await fetch('/api/brain-scan/analyze', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        console.log(`⚡ API Response received in ${((Date.now() - analysisStartTime) / 1000).toFixed(2)}s`);
+        console.log(`📡 Response status: ${response.status} ${response.statusText}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => '');
+          console.error("❌ API Error Details:", errorText);
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log("📦 API Response data:", data);
+        
+        // Since the server API queues the analysis, we need to poll for results
+        let analysisComplete = false;
+        let analysisResult = null;
+        let pollCount = 0;
+        
+        // Simple polling to check assessment status
+        if (data.assessmentId) {
+          console.log(`🔄 Assessment created with ID: ${data.assessmentId}`);
+          console.log(`⏳ Starting polling for analysis results...`);
           
-          const statusResponse = await fetch(`/api/assessment/${data.assessmentId}`);
-          if (statusResponse.ok) {
-            const statusData = await statusResponse.json();
+          for (let i = 0; i < 10; i++) { // Try up to 10 times
+            pollCount++;
+            await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds between checks
             
-            if (statusData.data?.status === 'completed') {
-              analysisComplete = true;
-              analysisResult = {
-                prediction: statusData.result || statusData.data?.result?.conclusion,
-                confidence: statusData.data?.result?.confidence || 0.8
-              };
-              break;
-            } else if (statusData.data?.status === 'failed') {
-              throw new Error(statusData.data?.error || 'Analysis failed');
+            console.log(`📡 Poll attempt ${pollCount}: Checking status of assessment ${data.assessmentId}`);
+            const statusResponse = await fetch(`/api/assessment/${data.assessmentId}`);
+            
+            console.log(`📡 Status response: ${statusResponse.status} ${statusResponse.statusText}`);
+            
+            if (statusResponse.ok) {
+              const statusData = await statusResponse.json();
+              console.log(`📦 Poll ${pollCount} result:`, statusData);
+              
+              if (statusData.data?.status === 'completed') {
+                console.log(`✅ Analysis completed successfully after ${pollCount} poll attempts`);
+                analysisComplete = true;
+                analysisResult = {
+                  prediction: statusData.result || statusData.data?.result?.conclusion || "Unknown",
+                  confidence: statusData.data?.result?.confidence || 0.7,
+                  stage: statusData.data?.result?.stage || "Unknown"
+                };
+                console.log(`📊 Final result:`, analysisResult);
+                break;
+              } else if (statusData.data?.status === 'failed') {
+                console.error(`❌ Analysis failed:`, statusData.data?.error);
+                throw new Error(statusData.data?.error || 'Analysis failed');
+              } else {
+                console.log(`⏳ Analysis still in progress: ${statusData.data?.status}`);
+              }
+            } else {
+              console.error(`❌ Failed to check status: ${statusResponse.status} ${statusResponse.statusText}`);
             }
           }
+          
+          if (!analysisComplete) {
+            console.error(`⏱️ Analysis timed out after ${pollCount} poll attempts`);
+            throw new Error('Analysis is taking longer than expected. Please check your assessments later.');
+          }
+          
+          setResult(analysisResult);
+        } else {
+          // For backward compatibility, assume immediate result
+          console.log(`⚠️ No assessmentId returned, using immediate result`);
+          setResult({
+            prediction: data.prediction || "Analysis queued",
+            confidence: data.confidence || 0.5,
+            stage: data.stage || "Unknown"
+          });
         }
-        
-        if (!analysisComplete) {
-          throw new Error('Analysis is taking longer than expected. Please check your assessments later.');
-        }
-        
-        setResult(analysisResult);
       } else {
-        // For backward compatibility, assume immediate result
-        setResult({
-          prediction: data.prediction || "Analysis queued",
-          confidence: data.confidence || 0.5
+        // Call Hugging Face API directly
+        const huggingFaceApiUrl = 'https://abdullah1211-ml-alzheimers.hf.space/api/predict';
+        
+        console.log(`🔄 Using direct Hugging Face API call`);
+        console.log(`🔗 Hugging Face API URL: ${huggingFaceApiUrl}`);
+        
+        // Create form data for the API request
+        const formData = new FormData();
+        formData.append("fileUrl", fileUrl);
+        
+        console.log(`📊 Sending request to Hugging Face API`);
+        console.log(`📝 Form data: fileUrl=${fileUrl.substring(0, 40)}...`);
+        
+        // Send request to Hugging Face API
+        const hfStartTime = Date.now();
+        const response = await fetch(huggingFaceApiUrl, {
+          method: 'POST',
+          body: formData,
         });
+        
+        console.log(`⚡ Hugging Face API response received in ${((Date.now() - hfStartTime) / 1000).toFixed(2)}s`);
+        console.log(`📡 Response status: ${response.status} ${response.statusText}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => '');
+          console.error("❌ Hugging Face API Error:", errorText);
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        // Process response
+        const result = await response.json();
+        console.log("📦 Hugging Face API Response:", result);
+        
+        // Set the result state
+        setResult({
+          prediction: result.prediction,
+          confidence: result.confidence,
+          stage: result.stage || "Unknown"
+        });
+        console.log(`✅ Analysis completed successfully using direct Hugging Face API`);
       }
     } catch (err) {
-      console.error('Error analyzing image:', err);
+      console.error('❌ Error analyzing image:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
+      console.log(`🏁 Analysis process completed`);
       setLoading(false);
     }
   };

@@ -1,9 +1,21 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Form
+from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 import joblib
 import os
+from typing import Optional
+import json
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Risk categories
 RISK_CATEGORIES = {
@@ -144,6 +156,10 @@ async def root():
             "avg_glucose_level": 228.69,
             "bmi": 36.6,
             "smoking_status": "formerly smoked"
+        },
+        "api_endpoints": {
+            "standard": "POST /",
+            "form_data": "POST /api/predict"
         }
     }
 
@@ -179,4 +195,72 @@ async def predict(request: Request):
         }
         
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}") 
+        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
+
+@app.post("/api/predict")
+async def predict_from_form(
+    gender: Optional[str] = Form(None),
+    age: Optional[int] = Form(None),
+    hypertension: Optional[int] = Form(None),
+    heart_disease: Optional[int] = Form(None),
+    ever_married: Optional[str] = Form(None),
+    work_type: Optional[str] = Form(None),
+    Residence_type: Optional[str] = Form(None),
+    avg_glucose_level: Optional[float] = Form(None),
+    bmi: Optional[float] = Form(None),
+    smoking_status: Optional[str] = Form(None),
+    formDataJson: Optional[str] = Form(None)
+):
+    """API endpoint that accepts form data or JSON string for prediction"""
+    try:
+        # Try to use JSON data if provided
+        if formDataJson:
+            try:
+                data = json.loads(formDataJson)
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=400, detail="Invalid JSON in formDataJson")
+        else:
+            # Build data dict from form fields
+            data = {
+                "gender": gender or "Male",
+                "age": age or 0,
+                "hypertension": hypertension or 0,
+                "heart_disease": heart_disease or 0,
+                "ever_married": ever_married or "No",
+                "work_type": work_type or "Private",
+                "Residence_type": Residence_type or "Urban",
+                "avg_glucose_level": avg_glucose_level or 0,
+                "bmi": bmi or 0,
+                "smoking_status": smoking_status or "never smoked"
+            }
+
+        # Try using the model first
+        if model_loaded:
+            # Preprocess the data
+            features = preprocess_without_pandas(data)
+            
+            # Make prediction
+            probability, risk_level, success = predict_with_model(features)
+            
+            if success:
+                return {
+                    "probability": float(probability),
+                    "prediction": risk_level,
+                    "stroke_prediction": int(probability > 0.5),
+                    "using_model": True
+                }
+        
+        # Use fallback if model fails or isn't loaded
+        probability, risk_level = fallback_prediction(data)
+        return {
+            "probability": float(probability),
+            "prediction": risk_level,
+            "stroke_prediction": int(probability > 0.5),
+            "using_model": False
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=7860) 

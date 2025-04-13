@@ -4,6 +4,22 @@ import numpy as np
 from PIL import Image
 import requests
 from io import BytesIO
+from fastapi import FastAPI, File, UploadFile, Form
+from fastapi.middleware.cors import CORSMiddleware
+import io
+from typing import Optional
+
+# Create a FastAPI app
+app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Model placeholder - replace with your actual model loading code
 def load_model():
@@ -50,6 +66,38 @@ def process_url(url):
             "error": str(e)
         }
 
+# New FastAPI endpoint for API calls
+@app.post("/api/predict")
+async def api_predict(
+    file: Optional[UploadFile] = File(None),
+    fileUrl: Optional[str] = Form(None)
+):
+    try:
+        if file:
+            # Process uploaded file
+            content = await file.read()
+            image = Image.open(io.BytesIO(content))
+        elif fileUrl:
+            # Process image from Uploadcare URL
+            return process_url(fileUrl)
+        else:
+            return {"error": "Either file or fileUrl is required"}
+        
+        # Process the image
+        return process_image(image)
+    except Exception as e:
+        return {"error": str(e)}
+
+# Original predict endpoint to maintain compatibility
+@app.post("/predict")
+async def predict_endpoint(file: UploadFile = File(...)):
+    try:
+        content = await file.read()
+        image = Image.open(io.BytesIO(content))
+        return process_image(image)
+    except Exception as e:
+        return {"error": str(e)}
+
 # Create the Gradio interface
 with gr.Blocks() as demo:
     gr.Markdown("# Brain Tumor Detection Model")
@@ -76,6 +124,10 @@ with gr.Blocks() as demo:
         
         url_submit_btn.click(fn=process_url, inputs=url_input, outputs=url_prediction_output)
 
-# Add API endpoints
-demo.queue()
-demo.launch() 
+# Mount the Gradio app to FastAPI
+app = gr.mount_gradio_app(app, demo, path="/")
+
+# This is only used when running the file directly
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=7860) 
