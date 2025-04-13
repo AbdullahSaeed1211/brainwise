@@ -18,7 +18,10 @@ import {
   MessageSquare,
   CalendarClock,
   Blocks,
-  Shield
+  Shield,
+  Activity,
+  Stethoscope,
+  BrainCircuit
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -64,6 +67,13 @@ const toolItems = [
   { name: "Daily Challenges", href: "/daily-challenges", icon: <CalendarClock className="h-4 w-4 mr-2" /> },
   { name: "Reaction Test", href: "/tools/reaction-test", icon: <Target className="h-4 w-4 mr-2" /> },
   { name: "Word Memory", href: "/tools/word-memory", icon: <MessageSquare className="h-4 w-4 mr-2" /> },
+];
+
+// Add predictors items
+const predictorItems = [
+  { name: "Stroke Predictor", href: "https://huggingface.co/spaces/Abdullah1211/ml-stroke", icon: <Heart className="h-4 w-4 mr-2" /> },
+  { name: "Brain Tumor Detection", href: "https://huggingface.co/spaces/Abdullah1211/ml-tumour", icon: <BrainCircuit className="h-4 w-4 mr-2" /> },
+  { name: "Alzheimer's Detection", href: "https://huggingface.co/spaces/Abdullah1211/ml-alzheimers", icon: <Activity className="h-4 w-4 mr-2" /> },
 ];
 
 // Group analytics and health info
@@ -123,6 +133,44 @@ export function Navbar() {
               {!item.icon && item.name}
             </Link>
           ))}
+
+          {/* Predictors Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                className={cn(
+                  "flex items-center gap-1 px-2",
+                  pathname.startsWith("/stroke-prediction") 
+                  ? "text-primary" : "text-muted-foreground"
+                )}
+              >
+                Predictors <ChevronDown className="h-4 w-4 ml-1 opacity-70" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 p-2">
+              <DropdownMenuLabel className="flex items-center gap-2 text-primary mb-1">
+                <Stethoscope className="h-4 w-4" />
+                <span>ML Models</span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="mb-2" />
+              <DropdownMenuGroup>
+                {predictorItems.map((item) => (
+                  <DropdownMenuItem key={item.name} asChild className="py-2 cursor-pointer">
+                    <Link 
+                      href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center rounded-md w-full"
+                    >
+                      {item.icon}
+                      {item.name}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Tools Dropdown */}
           <DropdownMenu>
@@ -328,6 +376,27 @@ export function Navbar() {
                             onClick={() => setOpen(false)}
                           >
                             {item.name}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Predictors Category */}
+                    <div className="space-y-3">
+                      <h4 className="flex items-center gap-2 text-sm font-semibold text-primary">
+                        <Stethoscope className="h-4 w-4" /> Predictors
+                      </h4>
+                      <div className="ml-6 grid grid-cols-1 gap-3">
+                        {predictorItems.map((item) => (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center text-sm transition-colors hover:text-primary text-muted-foreground"
+                          >
+                            {item.icon}
+                            <span>{item.name}</span>
                           </Link>
                         ))}
                       </div>

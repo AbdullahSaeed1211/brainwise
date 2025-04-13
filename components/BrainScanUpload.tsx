@@ -2,6 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 export function BrainScanUpload() {
   const { toast } = useToast();
@@ -11,12 +13,13 @@ export function BrainScanUpload() {
   const [progress, setProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState("");
   const [assessmentId, setAssessmentId] = useState<string>("");
+  const [scanType, setScanType] = useState<'tumor' | 'alzheimers'>('tumor');
 
   useEffect(() => {
     // Display notification about ML model construction status
     toast({
-      title: "Brain Scan Analysis (Beta)",
-      description: "ML model integration is under development. Results are simulated for demonstration purposes.",
+      title: "Brain Scan Analysis",
+      description: "Upload a brain MRI scan for analysis with our AI models.",
       variant: "default",
     });
   }, [toast]);
@@ -49,6 +52,7 @@ export function BrainScanUpload() {
       // Create form data
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('scanType', scanType);
       
       // Upload the file to API
       const response = await fetch('/api/brain-scan/analyze', {
@@ -69,7 +73,7 @@ export function BrainScanUpload() {
       
       toast({
         title: 'Brain scan uploaded',
-        description: 'Your scan is being processed. You will be notified when the analysis is complete.',
+        description: `Your ${scanType} scan is being analyzed. You will be notified when the analysis is complete.`,
         variant: "default",
       });
       
@@ -99,6 +103,25 @@ export function BrainScanUpload() {
         accept="image/jpeg,image/png,application/dicom"
       />
       
+      {/* Scan Type Selection */}
+      <div className="mb-4">
+        <h3 className="text-lg font-medium mb-2">Select Scan Type</h3>
+        <RadioGroup 
+          value={scanType} 
+          onValueChange={(value) => setScanType(value as 'tumor' | 'alzheimers')}
+          className="flex flex-col space-y-2"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="tumor" id="tumor" />
+            <Label htmlFor="tumor" className="cursor-pointer">Brain Tumor Analysis</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="alzheimers" id="alzheimers" />
+            <Label htmlFor="alzheimers" className="cursor-pointer">Alzheimer&apos;s Detection</Label>
+          </div>
+        </RadioGroup>
+      </div>
+      
       {/* File upload area with input that uses handleFileChange */}
       <div 
         className="border-dashed border-2 p-6 rounded-lg text-center cursor-pointer"
@@ -118,7 +141,7 @@ export function BrainScanUpload() {
       <button 
         onClick={handleUpload}
         disabled={!file || status === 'uploading' || status === 'processing'}
-        className="bg-blue-500 text-white py-2 px-4 rounded-md"
+        className="bg-blue-500 text-white py-2 px-4 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {status === 'idle' ? 'Upload Scan' : 'Processing...'}
       </button>

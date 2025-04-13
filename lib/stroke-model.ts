@@ -1,5 +1,3 @@
-import * as tf from '@tensorflow/tfjs';
-
 // Interface for stroke risk input data
 export interface StrokeRiskInput {
   gender: 'Male' | 'Female' | 'Other';
@@ -20,14 +18,6 @@ export interface PredictionResult {
   probability: number;
 }
 
-// Interface for normalization parameters
-interface NormalizationParams {
-  [key: string]: {
-    mean: number;
-    std: number;
-  };
-}
-
 // Risk categories based on probability thresholds
 const RISK_CATEGORIES = {
   'Very Low Risk': 0.1,
@@ -37,47 +27,14 @@ const RISK_CATEGORIES = {
   'Very High Risk': 0.8
 };
 
-// Flag to use the placeholder model until the TensorFlow.js model is properly loaded
-let useTemporaryModel = true;
-let strokeModel: tf.GraphModel | null = null;
-let normalization: NormalizationParams | null = null;
-
-// Initialize the model
-export async function initializeStrokeModel(): Promise<void> {
-  try {
-    // Load the model
-    console.log('Loading stroke prediction model...');
-    strokeModel = await tf.loadGraphModel('/models/stroke-model/model.json');
-    
-    // Load normalization parameters
-    const normResponse = await fetch('/models/stroke-model/normalization.json');
-    normalization = await normResponse.json() as NormalizationParams;
-    
-    console.log('Stroke prediction model loaded successfully');
-    useTemporaryModel = false;
-  } catch (error) {
-    console.error('Failed to load stroke prediction model:', error);
-    console.log('Using temporary placeholder model instead');
-    useTemporaryModel = true;
+// Get risk category based on probability
+function getRiskCategory(probability: number): string {
+  for (const [category, threshold] of Object.entries(RISK_CATEGORIES)) {
+    if (probability < threshold) {
+      return category;
+    }
   }
-}
-
-// One-hot encode categorical features
-function oneHotEncode(value: string, categories: string[]): number[] {
-  const encoded = new Array(categories.length).fill(0);
-  const index = categories.indexOf(value);
-  if (index !== -1) {
-    encoded[index] = 1;
-  }
-  return encoded;
-}
-
-// Normalize numeric features
-function normalizeFeature(value: number, feature: string): number {
-  if (!normalization || !normalization[feature]) return value;
-  
-  const { mean, std } = normalization[feature];
-  return (value - mean) / std;
+  return 'Very High Risk';
 }
 
 // Map form data to model input format
@@ -96,87 +53,50 @@ export function mapFormToModelInput(data: StrokeRiskInput): StrokeRiskInput {
   };
 }
 
-// Prepare tensor input for the model
-function prepareModelInput(data: StrokeRiskInput): tf.Tensor {
-  // Normalize numeric features
-  const normalizedAge = normalizeFeature(data.age, 'age');
-  const normalizedGlucose = normalizeFeature(data.avgGlucoseLevel, 'avgGlucoseLevel');
-  const normalizedBmi = normalizeFeature(data.bmi, 'bmi');
-  
-  // One-hot encode categorical features
-  const genderEncoded = oneHotEncode(data.gender, ['Female', 'Male', 'Other']);
-  const marriedEncoded = oneHotEncode(data.everMarried, ['No', 'Yes']);
-  const workTypeEncoded = oneHotEncode(data.workType, ['Govt_job', 'Never_worked', 'Private', 'Self-employed', 'children']);
-  const residenceEncoded = oneHotEncode(data.residenceType, ['Rural', 'Urban']);
-  const smokingEncoded = oneHotEncode(data.smokingStatus, ['Unknown', 'formerly smoked', 'never smoked', 'smokes']);
-  
-  // Combine all features
-  const features = [
-    normalizedAge,
-    normalizedGlucose,
-    normalizedBmi,
-    data.hypertension,
-    data.heartDisease,
-    ...genderEncoded,
-    ...marriedEncoded,
-    ...workTypeEncoded,
-    ...residenceEncoded,
-    ...smokingEncoded
-  ];
-  
-  return tf.tensor2d([features]);
-}
-
-// Get risk category based on probability
-function getRiskCategory(probability: number): string {
-  for (const [category, threshold] of Object.entries(RISK_CATEGORIES)) {
-    if (probability < threshold) {
-      return category;
-    }
-  }
-  return 'Very High Risk';
-}
-
-// Predict stroke risk using the model
+// Predict stroke risk using the Hugging Face API
 export async function predictStroke(data: StrokeRiskInput): Promise<PredictionResult> {
-  if (useTemporaryModel) {
-    // Use a placeholder model based on risk factors
-    return predictWithTemporaryModel(data);
-  }
-  
   try {
-    // Ensure model is loaded
-    if (!strokeModel) {
-      await initializeStrokeModel();
-      
-      // If still not available, use temporary model
-      if (!strokeModel) {
-        return predictWithTemporaryModel(data);
-      }
+    // Format the data for the API
+    const apiData = {
+      gender: data.gender,
+      age: data.age,
+      hypertension: data.hypertension,
+      heart_disease: data.heartDisease,
+      ever_married: data.everMarried,
+      work_type: data.workType,
+      Residence_type: data.residenceType,
+      avg_glucose_level: data.avgGlucoseLevel,
+      bmi: data.bmi,
+      smoking_status: data.smokingStatus
+    };
+    
+    // Call the Hugging Face API
+    const response = await fetch("https://abdullah1211-ml-stroke.hf.space", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(apiData),
+    });
+    
+    if (!response.ok) {
+      console.error('Hugging Face API error:', response.statusText);
+      return predictWithTemporaryModel(data);
     }
     
-    // Prepare input tensor
-    const inputTensor = prepareModelInput(data);
+    const result = await response.json();
     
-    // Run prediction
-    const result = strokeModel.predict(inputTensor) as tf.Tensor;
-    const probability = (await result.data())[0];
-    
-    // Clean up tensors
-    inputTensor.dispose();
-    result.dispose();
-    
-    // Get risk category
-    const prediction = getRiskCategory(probability);
-    
-    return { prediction, probability };
+    return { 
+      prediction: result.prediction,
+      probability: result.probability
+    };
   } catch (error) {
     console.error('Error during stroke prediction:', error);
     return predictWithTemporaryModel(data);
   }
 }
 
-// Temporary model based on risk factors
+// Temporary model based on risk factors (fallback if API fails)
 function predictWithTemporaryModel(data: StrokeRiskInput): PredictionResult {
   // Count risk factors
   const riskFactors = [];

@@ -282,11 +282,11 @@ export default function ToolsPage() {
     <div className="container px-4 py-8 md:py-12">
       <div className="text-center space-y-3 max-w-2xl mx-auto mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Cognitive Tools</h1>
-        <p className="text-muted-foreground">
-          Explore a variety of tools designed to help you improve your cognitive abilities.
-        </p>
-      </div>
-      
+              <p className="text-muted-foreground">
+                Explore a variety of tools designed to help you improve your cognitive abilities.
+              </p>
+            </div>
+
       <ResponsiveTabs defaultValue={activeCategory} value={activeCategory} onValueChange={setActiveCategory} className="w-full">
         <div className="flex justify-center mb-6">
           <ResponsiveTabsList>
@@ -295,7 +295,7 @@ export default function ToolsPage() {
             <ResponsiveTabsTrigger value="tracking" className="rounded-md">Tracking</ResponsiveTabsTrigger>
             <ResponsiveTabsTrigger value="education" className="rounded-md">Learning</ResponsiveTabsTrigger>
           </ResponsiveTabsList>
-        </div>
+                </div>
         
         {Object.entries({
           training: "Training Tools",
@@ -304,20 +304,20 @@ export default function ToolsPage() {
           education: "Learning Resources"
         }).map(([key, title]) => (
           <ResponsiveTabsContent key={key} value={key} className="mt-0 animate-in fade-in-50">
-            {activeTool ? (
-              <div className="space-y-6">
-                <Button 
-                  variant="ghost" 
+          {activeTool ? (
+            <div className="space-y-6">
+              <Button 
+                variant="ghost" 
                   onClick={() => setActiveTool(null)}
                   className="mb-4 flex items-center gap-2 pl-0 hover:pl-2 transition-all"
-                >
-                  <ChevronLeft className="h-4 w-4" /> Back to Tools
-                </Button>
-                
-                {toolsData.find(tool => tool.id === activeTool)?.component}
-              </div>
-            ) : (
-              <div className="space-y-6">
+              >
+                <ChevronLeft className="h-4 w-4" /> Back to Tools
+              </Button>
+              
+              {toolsData.find(tool => tool.id === activeTool)?.component}
+            </div>
+          ) : (
+                <div className="space-y-6">
                 {!isLoading && (
                   <h2 className="text-xl font-semibold mb-4">{title}</h2>
                 )}
@@ -329,14 +329,14 @@ export default function ToolsPage() {
                       .filter(tool => tool.category === key)
                       .map((tool) => (
                         <ToolCard
-                          key={tool.id}
+                        key={tool.id} 
                           tool={tool}
                           onClick={handleToolSelect}
                         />
-                      ))}
+                    ))}
                   </div>
                 )}
-              </div>
+                          </div>
             )}
           </ResponsiveTabsContent>
         ))}
