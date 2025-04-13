@@ -314,214 +314,227 @@ export default function BrainTumorDetectionPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="mb-8 space-y-4">
-        <div className="flex items-center space-x-2">
-          <BrainCircuit className="h-8 w-8 text-purple-500" />
-          <h1 className="text-3xl font-bold">Brain Tumor Detection</h1>
+    <>
+      <div className="max-w-3xl mx-auto">
+        <div className="mb-8 space-y-4">
+          <div className="flex items-center space-x-2">
+            <BrainCircuit className="h-8 w-8 text-purple-500" />
+            <h1 className="text-3xl font-bold">Brain Tumor Detection</h1>
+          </div>
+          <p className="text-muted-foreground">
+            Upload a brain MRI scan to detect potential tumors. Our AI model will analyze 
+            the image and provide a detection result. This tool is for informational 
+            purposes only and is not a substitute for professional medical diagnosis.
+          </p>
         </div>
-        <p className="text-muted-foreground">
-          Upload a brain MRI scan to detect potential tumors. Our AI model will analyze 
-          the image and provide a detection result. This tool is for informational 
-          purposes only and is not a substitute for professional medical diagnosis.
-        </p>
-      </div>
 
-      {error && (
-        <Alert variant="destructive" className="mb-8">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+        {error && (
+          <Alert variant="destructive" className="mb-8">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-      {result ? (
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Analysis Results</CardTitle>
-            <CardDescription>
-              Based on the uploaded MRI scan, our AI model has analyzed the image for potential tumors.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {previewUrl && (
-              <div className="mb-4 flex justify-center">
-                <div className="relative w-64 h-64 border rounded-md overflow-hidden">
-                  <Image 
-                    src={previewUrl} 
-                    alt="Brain MRI Scan" 
-                    fill 
-                    className="object-cover"
-                  />
+        {result ? (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Analysis Results</CardTitle>
+              <CardDescription>
+                Based on the uploaded MRI scan, our AI model has analyzed the image for signs of a brain tumor.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {previewUrl && (
+                <div className="mb-4 flex justify-center">
+                  <div className="relative w-64 h-64 sm:w-72 sm:h-72 border rounded-md overflow-hidden">
+                    <Image 
+                      src={previewUrl} 
+                      alt="Brain MRI Scan" 
+                      fill 
+                      className="object-cover"
+                      priority
+                    />
+                  </div>
+                </div>
+              )}
+              
+              <div className="p-4 border rounded-lg bg-muted">
+                <h3 className="text-xl font-semibold mb-2">
+                  Detection Result: {" "}
+                  <span className={result.prediction.includes("Tumor Detected") ? "text-red-500" : "text-green-500"}>
+                    {result.prediction}
+                  </span>
+                </h3>
+                <div className="text-sm text-muted-foreground">
+                  <p>Confidence: <span className={`font-medium ${getConfidenceColor(result.confidence)}`}>{(result.confidence * 100).toFixed(1)}%</span></p>
                 </div>
               </div>
-            )}
-            
-            <div className="p-4 border rounded-lg bg-muted">
-              <h3 className="text-xl font-semibold mb-2">
-                Detection Result: {" "}
-                <span className={result.prediction.includes("Tumor Detected") ? "text-red-500" : "text-green-500"}>
-                  {result.prediction}
-                </span>
-              </h3>
-              <div className="text-sm text-muted-foreground">
-                <p>Confidence: <span className={getConfidenceColor(result.confidence)}>{(result.confidence * 100).toFixed(1)}%</span></p>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <h4 className="font-medium">What this means:</h4>
-              <p className="text-sm text-muted-foreground">
-                {result.prediction.includes("Tumor Detected") 
-                  ? "The AI model has detected patterns consistent with a potential brain tumor. Please consult with a medical professional for proper diagnosis and treatment options."
-                  : "The AI model did not detect patterns consistent with a brain tumor. However, please consult with a medical professional for a comprehensive evaluation."}
-              </p>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button variant="outline" onClick={resetForm} className="w-full">
-              Analyze Another Scan
-            </Button>
-          </CardFooter>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Upload Brain MRI Scan</CardTitle>
-            <CardDescription>
-              Select a brain MRI image file to upload for tumor detection analysis.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <Tabs defaultValue="upload" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="upload">File Upload</TabsTrigger>
-                <TabsTrigger value="settings">Settings</TabsTrigger>
-              </TabsList>
               
-              <TabsContent value="upload" className="space-y-4">
-                <div 
-                  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-                    previewUrl ? "border-primary" : "border-muted-foreground/25 hover:border-muted-foreground/50"
-                  }`}
-                  onClick={() => document.getElementById('file-upload')?.click()}
-                >
-                  {previewUrl ? (
-                    <div className="flex flex-col items-center">
-                      <div className="relative w-48 h-48 mb-4">
-                        <Image 
-                          src={previewUrl} 
-                          alt="Brain MRI Preview" 
-                          fill 
-                          className="object-cover rounded-md"
-                        />
+              <div className="space-y-2">
+                <h4 className="font-medium">What this means:</h4>
+                <p className="text-sm text-muted-foreground">
+                  {result.prediction.includes("Tumor Detected") 
+                    ? "The AI model has detected patterns consistent with a potential brain tumor. Please consult with a medical professional for proper diagnosis and treatment options."
+                    : "The AI model did not detect patterns consistent with a brain tumor. However, please consult with a medical professional for a comprehensive evaluation."}
+                </p>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button variant="outline" onClick={resetForm} className="w-full">
+                Analyze Another Scan
+              </Button>
+            </CardFooter>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Upload Brain MRI Scan</CardTitle>
+              <CardDescription>
+                Select a brain MRI image file to upload for tumor detection analysis.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Tabs defaultValue="upload" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-2">
+                  <TabsTrigger value="upload">File Upload</TabsTrigger>
+                  <TabsTrigger value="settings">Settings</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="upload" className="space-y-4 mt-2">
+                  <div 
+                    className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                      previewUrl ? "border-primary" : "border-muted-foreground/25 hover:border-muted-foreground/50"
+                    }`}
+                    onClick={() => document.getElementById('file-upload')?.click()}
+                  >
+                    {previewUrl ? (
+                      <div className="flex flex-col items-center">
+                        <div className="relative w-48 h-48 mb-4">
+                          <Image 
+                            src={previewUrl} 
+                            alt="Brain MRI Preview" 
+                            fill 
+                            className="object-cover rounded-md"
+                            priority
+                          />
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {selectedFile?.name} ({(selectedFile?.size || 0) / 1024 > 1024 
+                            ? `${((selectedFile?.size || 0) / 1024 / 1024).toFixed(2)} MB` 
+                            : `${((selectedFile?.size || 0) / 1024).toFixed(2)} KB`})
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedFile?.name} ({(selectedFile?.size || 0) / 1024 > 1024 
-                          ? `${((selectedFile?.size || 0) / 1024 / 1024).toFixed(2)} MB` 
-                          : `${((selectedFile?.size || 0) / 1024).toFixed(2)} KB`})
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center">
-                      <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground mb-1">Drag and drop or click to upload</p>
-                      <p className="text-xs text-muted-foreground/75">
-                        Supports JPEG, PNG, and GIF (Max 10MB)
-                      </p>
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
+                        <p className="text-muted-foreground mb-1">Drag and drop or click to upload</p>
+                        <p className="text-xs text-muted-foreground/75">
+                          Supports JPEG, PNG, and GIF (Max 10MB)
+                        </p>
+                      </div>
+                    )}
+                    <input
+                      id="file-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                  </div>
+                  
+                  {uploadProgress > 0 && uploadProgress < 100 && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Uploading...</span>
+                        <span>{uploadProgress}%</span>
+                      </div>
+                      <Progress value={uploadProgress} className="h-2" />
                     </div>
                   )}
-                  <input
-                    id="file-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                </div>
+                </TabsContent>
                 
-                {uploadProgress > 0 && uploadProgress < 100 && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Uploading...</span>
-                      <span>{uploadProgress}%</span>
+                <TabsContent value="settings" className="space-y-4 mt-2">
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="scan-type" className="text-base">Scan Type</Label>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Select the type of analysis to perform on the brain scan
+                      </p>
+                      
+                      <RadioGroup value={scanType} onValueChange={setScanType} className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="tumor" id="tumor" />
+                          <Label htmlFor="tumor" className="cursor-pointer">Brain Tumor Analysis</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="alzheimers" id="alzheimers" />
+                          <Label htmlFor="alzheimers" className="cursor-pointer">Alzheimer&apos;s Detection</Label>
+                        </div>
+                      </RadioGroup>
                     </div>
-                    <Progress value={uploadProgress} className="h-2" />
+                    <div>
+                      <Label htmlFor="api-method" className="text-base">API Method</Label>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Select the method to use for analyzing the brain scan
+                      </p>
+                      
+                      <RadioGroup value={apiMethod.toString()} onValueChange={(value) => setApiMethod(Number(value))} className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="0" id="backend-api" />
+                          <Label htmlFor="backend-api" className="cursor-pointer">Backend API with polling</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="1" id="direct-api" />
+                          <Label htmlFor="direct-api" className="cursor-pointer">Direct API to Hugging Face FastAPI</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="2" id="gradio-api" />
+                          <Label htmlFor="gradio-api" className="cursor-pointer">Gradio API endpoints</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
                   </div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="settings" className="space-y-4">
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="scan-type" className="text-base">Scan Type</Label>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Select the type of analysis to perform on the brain scan
-                    </p>
-                    
-                    <RadioGroup value={scanType} onValueChange={setScanType} className="space-y-3">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="tumor" id="tumor" />
-                        <Label htmlFor="tumor" className="cursor-pointer">Brain Tumor Analysis</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="alzheimers" id="alzheimers" />
-                        <Label htmlFor="alzheimers" className="cursor-pointer">Alzheimer&apos;s Detection</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                  <div>
-                    <Label htmlFor="api-method" className="text-base">API Method</Label>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Select the method to use for analyzing the brain scan
-                    </p>
-                    
-                    <RadioGroup value={apiMethod.toString()} onValueChange={(value) => setApiMethod(Number(value))} className="space-y-3">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="0" id="backend-api" />
-                        <Label htmlFor="backend-api" className="cursor-pointer">Backend API with polling</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="1" id="direct-api" />
-                        <Label htmlFor="direct-api" className="cursor-pointer">Direct API to Hugging Face FastAPI</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="2" id="gradio-api" />
-                        <Label htmlFor="gradio-api" className="cursor-pointer">Gradio API endpoints</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-          <CardFooter>
-            <Button 
-              onClick={analyzeImage} 
-              className="w-full" 
-              disabled={!selectedFile || loading}
-            >
-              {loading ? "Analyzing..." : "Analyze Brain Scan"}
-            </Button>
-          </CardFooter>
-        </Card>
-      )}
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+            <CardFooter>
+              <Button 
+                onClick={analyzeImage} 
+                className="w-full" 
+                disabled={!selectedFile || loading}
+              >
+                {loading ? 
+                  <div className="flex items-center">
+                    <span className="mr-2">Analyzing...</span>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div> : 
+                  "Analyze Brain Scan"
+                }
+              </Button>
+            </CardFooter>
+          </Card>
+        )}
 
-      <div className="mt-12 p-6 border rounded-lg bg-muted">
-        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <AlertCircle className="h-5 w-5 text-amber-500" />
-          Important Notice
-        </h3>
-        <p className="text-sm text-muted-foreground mb-2">
-          This tool is for informational purposes only and does not provide medical advice. 
-          The predictions are based on AI models and should not be used to make 
-          medical decisions without consulting a healthcare professional.
-        </p>
-        <p className="text-sm text-muted-foreground">
-          If you&apos;re concerned about your health or are experiencing symptoms, 
-          please contact a healthcare provider immediately.
-        </p>
+        <div className="mt-8 p-6 border rounded-lg bg-muted">
+          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-amber-500" />
+            Important Notice
+          </h3>
+          <p className="text-sm text-muted-foreground mb-2">
+            This tool is for informational purposes only and does not provide medical advice. 
+            The predictions are based on AI models and should not be used to make 
+            medical decisions without consulting a healthcare professional.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            If you&apos;re concerned about your health or are experiencing symptoms, 
+            please contact a healthcare provider immediately.
+          </p>
+        </div>
       </div>
-    </div>
+    </>
   );
 } 
