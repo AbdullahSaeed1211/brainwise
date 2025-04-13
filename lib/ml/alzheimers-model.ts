@@ -1,4 +1,4 @@
-import { loadModel } from './model-loader';
+import { getModelEndpoint } from './model-loader';
 
 // Interface for Alzheimer's risk input data
 export interface AlzheimersRiskInput {
@@ -52,28 +52,48 @@ function getRiskLevel(probability: number): string {
 }
 
 /**
- * Predict Alzheimer's risk using the model
+ * Predict Alzheimer's risk using the Hugging Face model API
  */
 export async function predictAlzheimers(
   data: AlzheimersRiskInput,
-  options: {
-    version?: string;
-    forceRefresh?: boolean;
-  } = {}
+  options?: { version?: string; forceRefresh?: boolean }
 ): Promise<PredictionResult> {
+  const startTime = Date.now();
+  
   try {
-    // Load the model
-    const model = await loadModel('alzheimers', options);
+    // Use Hugging Face endpoint directly
+    const endpoint = getModelEndpoint('alzheimers');
+    const apiUrl = options?.version ? 
+      `${endpoint}/api/predict?version=${options.version}` : 
+      `${endpoint}/api/predict`;
+      
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
     
-    if (!model) {
-      console.log('Model not available, using temporary model');
+    if (!response.ok) {
+      console.error(`API Error: ${response.status} ${response.statusText}`);
       return predictWithTemporaryModel(data);
     }
     
-    // Actual model implementation would go here
-    // For now, return temporary model results
-    return predictWithTemporaryModel(data);
+    const result = await response.json();
+    const inferenceTimeMs = Date.now() - startTime;
     
+    if (result?.prediction && typeof result.probability === 'number') {
+      return {
+        prediction: result.prediction,
+        probability: result.probability,
+        riskLevel: getRiskLevel(result.probability),
+        modelVersion: result.modelVersion || 'huggingface',
+        inferenceTimeMs
+      };
+    }
+    
+    return predictWithTemporaryModel(data);
   } catch (error) {
     console.error('Error during Alzheimer\'s prediction:', error);
     return predictWithTemporaryModel(data);
@@ -81,7 +101,7 @@ export async function predictAlzheimers(
 }
 
 /**
- * Temporary model based on risk factors
+ * Temporary model based on risk factors - used as fallback
  */
 function predictWithTemporaryModel(data: AlzheimersRiskInput): PredictionResult {
   // Count risk factors
@@ -118,7 +138,7 @@ function predictWithTemporaryModel(data: AlzheimersRiskInput): PredictionResult 
     prediction,
     probability,
     riskLevel,
-    modelVersion: 'placeholder',
-    inferenceTimeMs: 5 // Nominal value for the placeholder model
+    modelVersion: 'fallback-model',
+    inferenceTimeMs: 5 // Nominal value for the fallback model
   };
 } 

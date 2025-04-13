@@ -1,5 +1,4 @@
-import * as tf from '@tensorflow/tfjs';
-import { loadModel } from './model-loader';
+import { getModelEndpoint } from './model-loader';
 
 // Interface for stroke risk input data
 export interface StrokeRiskInput {
@@ -25,14 +24,6 @@ export interface PredictionResult {
   totalRiskScore?: number;
 }
 
-// Interface for normalization parameters
-interface NormalizationParams {
-  [key: string]: {
-    mean: number;
-    std: number;
-  };
-}
-
 // Risk categories based on probability thresholds
 const RISK_CATEGORIES = {
   'Very Low Risk': 0.1,
@@ -41,93 +32,6 @@ const RISK_CATEGORIES = {
   'High Risk': 0.6,
   'Very High Risk': 0.8
 };
-
-// Normalization parameters (cached after first load)
-let normalization: NormalizationParams | null = null;
-
-/**
- * Load normalization parameters for the model
- */
-export async function loadNormalizationParams(version?: string): Promise<NormalizationParams | null> {
-  if (normalization) return normalization;
-  
-  try {
-    const isProduction = process.env.NODE_ENV === 'production';
-    const baseUrl = isProduction 
-      ? 'https://storage.googleapis.com/brain-ai-models/stroke-model'
-      : '/models/stroke-model';
-    
-    const versionPath = version ? `/versions/${version}` : '';
-    const url = `${baseUrl}${versionPath}/normalization.json`;
-    
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.error('Failed to load normalization parameters:', response.statusText);
-      return null;
-    }
-    
-    normalization = await response.json() as NormalizationParams;
-    return normalization;
-  } catch (error) {
-    console.error('Error loading normalization parameters:', error);
-    return null;
-  }
-}
-
-/**
- * One-hot encode categorical features
- */
-function oneHotEncode(value: string, categories: string[]): number[] {
-  const encoded = new Array(categories.length).fill(0);
-  const index = categories.indexOf(value);
-  if (index !== -1) {
-    encoded[index] = 1;
-  }
-  return encoded;
-}
-
-/**
- * Normalize numeric features
- */
-function normalizeFeature(value: number, feature: string): number {
-  if (!normalization || !normalization[feature]) return value;
-  
-  const { mean, std } = normalization[feature];
-  return (value - mean) / std;
-}
-
-/**
- * Prepare tensor input for the model
- */
-function prepareModelInput(data: StrokeRiskInput): tf.Tensor {
-  // Normalize numeric features
-  const normalizedAge = normalizeFeature(data.age, 'age');
-  const normalizedGlucose = normalizeFeature(data.avgGlucoseLevel, 'avgGlucoseLevel');
-  const normalizedBmi = normalizeFeature(data.bmi, 'bmi');
-  
-  // One-hot encode categorical features
-  const genderEncoded = oneHotEncode(data.gender, ['Female', 'Male', 'Other']);
-  const marriedEncoded = oneHotEncode(data.everMarried, ['No', 'Yes']);
-  const workTypeEncoded = oneHotEncode(data.workType, ['Govt_job', 'Never_worked', 'Private', 'Self-employed', 'children']);
-  const residenceEncoded = oneHotEncode(data.residenceType, ['Rural', 'Urban']);
-  const smokingEncoded = oneHotEncode(data.smokingStatus, ['Unknown', 'formerly smoked', 'never smoked', 'smokes']);
-  
-  // Combine all features
-  const features = [
-    normalizedAge,
-    normalizedGlucose,
-    normalizedBmi,
-    data.hypertension,
-    data.heartDisease,
-    ...genderEncoded,
-    ...marriedEncoded,
-    ...workTypeEncoded,
-    ...residenceEncoded,
-    ...smokingEncoded
-  ];
-  
-  return tf.tensor2d([features]);
-}
 
 /**
  * Get risk category based on probability
@@ -142,7 +46,7 @@ function getRiskCategory(probability: number): string {
 }
 
 /**
- * Predict stroke risk using the model
+ * Predict stroke risk using the Hugging Face API
  */
 export async function predictStroke(
   data: StrokeRiskInput,
@@ -154,40 +58,40 @@ export async function predictStroke(
   const startTime = Date.now();
   
   try {
-    // Ensure normalization parameters are loaded
-    if (!normalization) {
-      await loadNormalizationParams(options.version);
-    }
+    // Use Hugging Face endpoint directly
+    const endpoint = getModelEndpoint('stroke');
+    const apiUrl = options?.version ? 
+      `${endpoint}/api/predict?version=${options.version}` : 
+      `${endpoint}/api/predict`;
+      
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
     
-    // Load the model
-    const model = await loadModel('stroke', options);
-    
-    if (!model) {
-      console.log('Model not available, using temporary model');
+    if (!response.ok) {
+      console.error(`API Error: ${response.status} ${response.statusText}`);
       return predictWithTemporaryModel(data);
     }
     
-    // Prepare input tensor
-    const inputTensor = prepareModelInput(data);
-    
-    // Run prediction
-    const result = model.predict(inputTensor) as tf.Tensor;
-    const probability = (await result.data())[0];
-    
-    // Clean up tensors
-    inputTensor.dispose();
-    result.dispose();
-    
-    // Get risk category
-    const prediction = getRiskCategory(probability);
+    const result = await response.json();
     const inferenceTimeMs = Date.now() - startTime;
     
-    return { 
-      prediction, 
-      probability,
-      modelVersion: options.version || 'latest',
-      inferenceTimeMs
-    };
+    if (result?.prediction && typeof result.probability === 'number') {
+      return {
+        prediction: result.prediction,
+        probability: result.probability,
+        riskFactors: result.riskFactors,
+        modelVersion: result.modelVersion || 'huggingface',
+        inferenceTimeMs
+      };
+    }
+    
+    // Fallback to temporary model if API response format is unexpected
+    return predictWithTemporaryModel(data);
   } catch (error) {
     console.error('Error during stroke prediction:', error);
     return predictWithTemporaryModel(data);
@@ -195,7 +99,7 @@ export async function predictStroke(
 }
 
 /**
- * Temporary model based on risk factors
+ * Temporary model based on risk factors - used as fallback
  */
 function predictWithTemporaryModel(data: StrokeRiskInput): PredictionResult {
   // Calculate weighted risk factors
@@ -274,9 +178,9 @@ function predictWithTemporaryModel(data: StrokeRiskInput): PredictionResult {
   return {
     prediction: getRiskCategory(probability),
     probability,
-    riskFactors: riskFactors.map(rf => rf.factor), // Optional: include risk factors for UI
+    riskFactors: riskFactors.map(rf => rf.factor),
     totalRiskScore,
-    modelVersion: 'enhanced-placeholder-v2',
-    inferenceTimeMs: 5 // Nominal value for the placeholder model
+    modelVersion: 'fallback-model',
+    inferenceTimeMs: 5 // Nominal value for the fallback model
   };
 } 
