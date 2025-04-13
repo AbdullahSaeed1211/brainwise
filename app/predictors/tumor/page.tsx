@@ -25,6 +25,7 @@ export default function BrainTumorDetectionPage() {
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [scanType, setScanType] = useState<string>("tumor");
+  const [apiMethod, setApiMethod] = useState<number>(1);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -110,9 +111,9 @@ export default function BrainTumorDetectionPage() {
       console.log(`✅ File uploaded successfully in ${uploadDuration}s`);
       console.log(`🔗 Uploadcare CDN URL: ${fileUrl}`);
       
-      // Option 1: Use our API route to analyze the image (default, uses database for tracking)
-      if (true) { // Set to false to use direct Hugging Face API call
-        console.log(`🔄 Using server API for ${scanType} analysis`);
+      // Option 0: Use our API route with backend proxy and assessment tracking
+      if (apiMethod === 0) {
+        console.log(`🔄 Using server API with assessment tracking for ${scanType} analysis`);
         
         const formData = new FormData();
         formData.append("fileUrl", fileUrl);
@@ -196,8 +197,9 @@ export default function BrainTumorDetectionPage() {
             confidence: data.confidence || 0.5
           });
         }
-      } else {
-        // Option 2: Call Hugging Face API directly
+      } 
+      // Option 1: Call Hugging Face API directly
+      else if (apiMethod === 1) {
         // Determine the appropriate API endpoint based on scan type
         const huggingFaceApiUrl = scanType === "alzheimers" 
           ? 'https://abdullah1211-ml-alzheimers.hf.space/api/predict'
@@ -239,6 +241,54 @@ export default function BrainTumorDetectionPage() {
           confidence: result.confidence
         });
         console.log(`✅ Analysis completed successfully using direct Hugging Face API`);
+      }
+      // Option 2: Use the Gradio API endpoints
+      else {
+        const modelSpace = scanType === "alzheimers" 
+          ? "Abdullah1211/ml-alzheimers"
+          : "Abdullah1211/ml-tumour";
+          
+        const apiEndpoint = scanType === "alzheimers"
+          ? "https://abdullah1211-ml-alzheimers.hf.space/process_url"
+          : "https://abdullah1211-ml-tumour.hf.space/process_url";
+          
+        console.log(`🔄 Using Gradio API: ${modelSpace}`);
+        console.log(`🔗 Gradio API endpoint: ${apiEndpoint}`);
+        
+        // Create the request to the process_url endpoint
+        const hfStartTime = Date.now();
+        const response = await fetch(apiEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            data: [fileUrl]
+          }),
+        });
+        
+        console.log(`⚡ Gradio API response received in ${((Date.now() - hfStartTime) / 1000).toFixed(2)}s`);
+        console.log(`📡 Response status: ${response.status} ${response.statusText}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => '');
+          console.error("❌ Gradio API Error:", errorText);
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        // Process response - Gradio returns data in a different format
+        const gradioResponse = await response.json();
+        console.log("📦 Gradio API Response:", gradioResponse);
+        
+        // The data is in the 'data' field of the response
+        const result = gradioResponse.data;
+        
+        // Set the result state
+        setResult({
+          prediction: result.prediction,
+          confidence: result.confidence
+        });
+        console.log(`✅ Analysis completed successfully using Gradio API`);
       }
     } catch (err) {
       console.error('❌ Error analyzing image:', err);
@@ -417,6 +467,27 @@ export default function BrainTumorDetectionPage() {
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="alzheimers" id="alzheimers" />
                         <Label htmlFor="alzheimers" className="cursor-pointer">Alzheimer&apos;s Detection</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  <div>
+                    <Label htmlFor="api-method" className="text-base">API Method</Label>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Select the method to use for analyzing the brain scan
+                    </p>
+                    
+                    <RadioGroup value={apiMethod.toString()} onValueChange={(value) => setApiMethod(Number(value))} className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="0" id="backend-api" />
+                        <Label htmlFor="backend-api" className="cursor-pointer">Backend API with polling</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="1" id="direct-api" />
+                        <Label htmlFor="direct-api" className="cursor-pointer">Direct API to Hugging Face FastAPI</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="2" id="gradio-api" />
+                        <Label htmlFor="gradio-api" className="cursor-pointer">Gradio API endpoints</Label>
                       </div>
                     </RadioGroup>
                   </div>

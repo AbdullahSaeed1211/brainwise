@@ -13,10 +13,14 @@ USER user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH
 
-# Install required packages directly
-RUN pip install --no-cache-dir --user numpy==1.24.3 && \
-    pip install --no-cache-dir --user scikit-learn==1.2.2 && \
-    pip install --no-cache-dir --user fastapi==0.95.2 uvicorn==0.23.2 joblib==1.3.2
+# Copy requirements file first for better layer caching
+COPY --chown=user:user requirements.txt .
+
+# Install required packages from requirements.txt
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Make sure python-multipart is installed - use quotes to prevent shell issues
+RUN pip install --no-cache-dir --user "python-multipart>=0.0.6"
 
 # Copy application files
 COPY --chown=user:user . .

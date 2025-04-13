@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { uploadFile } from "@uploadcare/upload-client";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface AlzheimersDetectionResult {
   prediction: string;
@@ -24,6 +26,7 @@ export default function AlzheimersDetectionPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [apiMethod, setApiMethod] = useState<number>(1);
   
   // Classification categories for Alzheimer's
   const classifications = [
@@ -136,9 +139,9 @@ export default function AlzheimersDetectionPage() {
       console.log(`✅ File uploaded successfully in ${uploadDuration}s`);
       console.log(`🔗 Uploadcare CDN URL: ${fileUrl}`);
       
-      // Determine if we should use our API route or call Hugging Face directly
-      if (true) { // Set to false to use direct Hugging Face API call
-        console.log(`🔄 Using server API for Alzheimer's detection analysis`);
+      // Option 0: Use our server API route with assessment tracking
+      if (apiMethod === 0) {
+        console.log(`🔄 Using server API with assessment tracking for Alzheimer's detection`);
         
         const formData = new FormData();
         formData.append("fileUrl", fileUrl);
@@ -224,12 +227,10 @@ export default function AlzheimersDetectionPage() {
             stage: data.stage || "Unknown"
           });
         }
-      } else {
-        // Call Hugging Face API directly
-        const huggingFaceApiUrl = 'https://abdullah1211-ml-alzheimers.hf.space/api/predict';
-        
+      } 
+      // Option 1: Call Hugging Face API directly
+      else if (apiMethod === 1) {
         console.log(`🔄 Using direct Hugging Face API call`);
-        console.log(`🔗 Hugging Face API URL: ${huggingFaceApiUrl}`);
         
         // Create form data for the API request
         const formData = new FormData();
@@ -240,7 +241,7 @@ export default function AlzheimersDetectionPage() {
         
         // Send request to Hugging Face API
         const hfStartTime = Date.now();
-        const response = await fetch(huggingFaceApiUrl, {
+        const response = await fetch('https://abdullah1211-ml-alzheimers.hf.space/api/predict', {
           method: 'POST',
           body: formData,
         });
@@ -265,6 +266,49 @@ export default function AlzheimersDetectionPage() {
           stage: result.stage || "Unknown"
         });
         console.log(`✅ Analysis completed successfully using direct Hugging Face API`);
+      }
+      // Option 2: Use the Gradio API endpoints
+      else {
+        const apiEndpoint = "https://abdullah1211-ml-alzheimers.hf.space/process_url";
+          
+        console.log(`🔄 Using Gradio API: Abdullah1211/ml-alzheimers`);
+        console.log(`🔗 Gradio API endpoint: ${apiEndpoint}`);
+        
+        // Create the request to the process_url endpoint
+        const hfStartTime = Date.now();
+        const response = await fetch(apiEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            data: [fileUrl]
+          }),
+        });
+        
+        console.log(`⚡ Gradio API response received in ${((Date.now() - hfStartTime) / 1000).toFixed(2)}s`);
+        console.log(`📡 Response status: ${response.status} ${response.statusText}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => '');
+          console.error("❌ Gradio API Error:", errorText);
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        // Process response - Gradio returns data in a different format
+        const gradioResponse = await response.json();
+        console.log("📦 Gradio API Response:", gradioResponse);
+        
+        // The data is in the 'data' field of the response
+        const result = gradioResponse.data;
+        
+        // Set the result state
+        setResult({
+          prediction: result.prediction,
+          confidence: result.confidence,
+          stage: result.stage || "Unknown"
+        });
+        console.log(`✅ Analysis completed successfully using Gradio API`);
       }
     } catch (err) {
       console.error('❌ Error analyzing image:', err);
@@ -405,6 +449,7 @@ export default function AlzheimersDetectionPage() {
             <Tabs defaultValue="upload" className="w-full">
               <TabsList className="grid w-full grid-cols-1">
                 <TabsTrigger value="upload">File Upload</TabsTrigger>
+                <TabsTrigger value="settings">Settings</TabsTrigger>
               </TabsList>
               
               <TabsContent value="upload" className="space-y-4">
@@ -457,6 +502,31 @@ export default function AlzheimersDetectionPage() {
                     <Progress value={uploadProgress} className="h-2" />
                   </div>
                 )}
+              </TabsContent>
+              <TabsContent value="settings" className="space-y-4">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="api-method" className="text-base">API Method</Label>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Select the method to use for analyzing the brain scan
+                    </p>
+                    
+                    <RadioGroup value={apiMethod.toString()} onValueChange={(value) => setApiMethod(Number(value))} className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="0" id="backend-api" />
+                        <Label htmlFor="backend-api" className="cursor-pointer">Backend API with polling</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="1" id="direct-api" />
+                        <Label htmlFor="direct-api" className="cursor-pointer">Direct API to Hugging Face FastAPI</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="2" id="gradio-api" />
+                        <Label htmlFor="gradio-api" className="cursor-pointer">Gradio API endpoints</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                </div>
               </TabsContent>
             </Tabs>
           </CardContent>

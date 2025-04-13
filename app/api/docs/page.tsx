@@ -76,7 +76,7 @@ export default function ApiDocsPage() {
                       <h3 className="text-sm font-semibold text-muted-foreground mb-1">Request Body</h3>
                       <div className="bg-muted p-3 rounded-md overflow-auto max-h-96">
                         <pre className="text-xs">
-                          {JSON.stringify(endpoint.requestBody.content["application/json"].schema, null, 2)}
+                          {JSON.stringify(endpoint.requestBody.content?.["application/json"]?.schema, null, 2)}
                         </pre>
                       </div>
                     </div>

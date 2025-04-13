@@ -1,3 +1,12 @@
+try:
+    import multipart
+    print("python-multipart is installed: ", multipart.__version__)
+except ImportError:
+    print("python-multipart is NOT installed. Installing now...")
+    import subprocess
+    subprocess.check_call(["pip", "install", "python-multipart"])
+    print("python-multipart has been installed")
+
 from fastapi import FastAPI, Request, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
