@@ -108,6 +108,103 @@ export const apiDocumentation = {
     },
     
     {
+      path: "/brain-scan/analyze",
+      method: "POST",
+      description: "Analyzes brain MRI scans for tumor detection or Alzheimer's detection",
+      authentication: "Required - Clerk user authentication",
+      requestBody: {
+        required: true,
+        content: {
+          "multipart/form-data": {
+            schema: {
+              type: "object",
+              required: ["fileUrl", "scanType"],
+              properties: {
+                fileUrl: { 
+                  type: "string", 
+                  description: "Uploadcare CDN URL for the uploaded brain scan image" 
+                },
+                scanType: { 
+                  type: "string", 
+                  enum: ["tumor", "alzheimers"], 
+                  description: "Type of analysis to perform" 
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        "200": {
+          description: "Analysis successfully queued",
+          content: {
+            "application/json": {
+              example: {
+                message: "Scan uploaded successfully and queued for analysis",
+                assessmentId: "60f9a5b7c5b39a001234abcd",
+                status: "processing",
+                modelStatus: "processing",
+                estimatedTime: "10-30 seconds"
+              }
+            }
+          }
+        },
+        "400": { description: "Missing required fields or invalid input" },
+        "401": { description: "Unauthorized - User not authenticated" },
+        "500": { description: "Server error during scan processing" }
+      }
+    },
+    
+    {
+      path: "/assessment/{id}",
+      method: "GET",
+      description: "Retrieves the status and results of a brain scan assessment",
+      authentication: "Required - Clerk user authentication",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          description: "Assessment ID returned from the brain-scan/analyze endpoint",
+          schema: { type: "string" }
+        }
+      ],
+      responses: {
+        "200": {
+          description: "Assessment information retrieved successfully",
+          content: {
+            "application/json": {
+              example: {
+                _id: "60f9a5b7c5b39a001234abcd",
+                userId: "user_2x7aDFg9J3m1nOP5qR6stU",
+                type: "tumor",
+                result: "No Tumor Detected",
+                risk: "low",
+                data: {
+                  fileUrl: "https://ucarecdn.com/7f9d5e6f-8c4b-4d2a-9e3f-1d2c4b5a6e7f/",
+                  status: "completed",
+                  submitted: "2023-11-20T15:30:00Z",
+                  result: {
+                    conclusion: "No Tumor Detected",
+                    confidence: 0.95,
+                    processingTime: "2023-11-20T15:30:30Z",
+                    modelUsed: "Brain Tumor Detection"
+                  }
+                },
+                date: "2023-11-20T15:30:00Z"
+              }
+            }
+          }
+        },
+        "400": { description: "Invalid assessment ID" },
+        "401": { description: "Unauthorized - User not authenticated" },
+        "403": { description: "Forbidden - User does not have access to this assessment" },
+        "404": { description: "Assessment not found" },
+        "500": { description: "Server error during assessment retrieval" }
+      }
+    },
+    
+    {
       path: "/user/cognitive-scores",
       method: "POST",
       description: "Stores cognitive game results and calculates domain scores",

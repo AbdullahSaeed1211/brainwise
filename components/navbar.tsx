@@ -70,9 +70,9 @@ const toolItems = [
 
 // Add predictors items
 const predictorItems = [
-  { name: "Stroke Predictor", href: "https://huggingface.co/spaces/Abdullah1211/ml-stroke", icon: <Heart className="h-4 w-4 mr-2" /> },
-  { name: "Brain Tumor Detection", href: "https://huggingface.co/spaces/Abdullah1211/ml-tumour", icon: <BrainCircuit className="h-4 w-4 mr-2" /> },
-  { name: "Alzheimer's Detection", href: "https://huggingface.co/spaces/Abdullah1211/ml-alzheimers", icon: <Activity className="h-4 w-4 mr-2" /> },
+  { name: "Stroke Predictor", href: "/predictors/stroke", icon: <Heart className="h-4 w-4 mr-2" /> },
+  { name: "Brain Tumor Detection", href: "/predictors/tumor", icon: <BrainCircuit className="h-4 w-4 mr-2" /> },
+  { name: "Alzheimer's Detection", href: "/predictors/alzheimers", icon: <Activity className="h-4 w-4 mr-2" /> },
 ];
 
 // Group analytics and health info
@@ -158,8 +158,6 @@ export function Navbar() {
                   <DropdownMenuItem key={item.name} asChild className="py-2 cursor-pointer">
                     <Link 
                       href={item.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
                       className="flex items-center rounded-md w-full"
                     >
                       {item.icon}
@@ -390,8 +388,6 @@ export function Navbar() {
                           <Link
                             key={item.href}
                             href={item.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
                             className="flex items-center text-sm transition-colors hover:text-primary text-muted-foreground"
                           >
                             {item.icon}

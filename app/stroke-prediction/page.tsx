@@ -1,5 +1,5 @@
-import { StrokeForm } from "@/components/stroke-form";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Stroke Risk Assessment | Brainwise",
@@ -32,19 +32,6 @@ export const metadata: Metadata = {
 };
 
 export default function StrokePredictionPage() {
-  return (
-    <div className="container py-10">
-      <div className="mx-auto max-w-4xl space-y-8">
-        <div className="space-y-2 text-center">
-          <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-            <span className="magic-gradient-text">Stroke Prediction</span>
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300 md:text-xl">
-            Fill in the form below to predict your stroke risk based on health factors.
-          </p>
-        </div>
-        <StrokeForm />
-      </div>
-    </div>
-  );
+  // Redirect to the new predictor page
+  redirect("/predictors/stroke");
 } 

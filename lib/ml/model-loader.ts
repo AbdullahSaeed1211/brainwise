@@ -74,54 +74,36 @@ export async function loadModelMetadata(modelType: ModelType, version?: string):
 }
 
 /**
- * Load a TensorFlow.js model from Google Cloud Storage or local path
+ * Load a TensorFlow.js model from Hugging Face Space or local path
+ * @param modelType Type of model to load (e.g., 'stroke', 'alzheimers')
+ * @returns Loaded model or null if loading fails
  */
-export async function loadModel(
-  modelType: ModelType, 
-  options: { 
-    version?: string; 
-    forceRefresh?: boolean;
-  } = {}
-): Promise<tf.GraphModel | tf.LayersModel | null> {
-  // Skip model loading during build
-  if (isBuild) {
-    console.log(`Skipping model load for ${modelType} during build`);
-    return null;
-  }
-
-  const { version, forceRefresh = false } = options;
-  const cacheKey = `${modelType}${version ? `-${version}` : ''}`;
-  
-  // Return cached model if available and not forcing refresh
-  if (!forceRefresh && config.useCache && modelCache[cacheKey]?.model) {
-    console.log(`Using cached ${modelType} model`);
-    return modelCache[cacheKey].model;
-  }
-  
-  // Get model URL
-  const modelUrl = getModelUrl(modelType, version);
-  console.log(`Loading ${modelType} model from ${modelUrl}`);
-  
+export async function loadModel(modelType: string) {
   try {
-    // Load the model
-    const model = await tf.loadGraphModel(`${modelUrl}/model.json`);
-    
-    // Load metadata
-    const metadata = await loadModelMetadata(modelType, version);
-    
-    // Cache the model
-    if (config.useCache) {
-      modelCache[cacheKey] = {
-        model,
-        metadata,
-        loadedAt: new Date()
-      };
-    }
-    
-    return model;
+    // This is a placeholder - in the actual implementation, we'll call the Hugging Face API
+    console.log(`Loading ${modelType} model from Hugging Face...`);
+    return null;
   } catch (error) {
     console.error(`Error loading ${modelType} model:`, error);
     return null;
+  }
+}
+
+/**
+ * Get the URL for a model's API endpoint
+ * @param modelType Type of model
+ * @returns API endpoint URL
+ */
+export function getModelEndpoint(modelType: string): string {
+  switch (modelType) {
+    case 'stroke':
+      return 'https://abdullah1211-ml-stroke.hf.space';
+    case 'tumor':
+      return 'https://abdullah1211-ml-tumor.hf.space';
+    case 'alzheimers':
+      return 'https://abdullah1211-ml-alzheimers.hf.space';
+    default:
+      throw new Error(`Unknown model type: ${modelType}`);
   }
 }
 
@@ -146,7 +128,7 @@ export async function preloadModels(modelTypes?: ModelType[]): Promise<void> {
   await Promise.all(
     modelTypes.map(async (modelType) => {
       try {
-        await loadModel(modelType, { forceRefresh: false });
+        await loadModel(modelType);
         console.log(`✅ Preloaded model: ${modelType}`);
       } catch (error) {
         console.warn(`⚠️ Failed to preload model ${modelType}:`, error);

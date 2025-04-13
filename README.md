@@ -6,6 +6,7 @@ BrainWise is a comprehensive web application designed to help users with brain h
 
 - **Health Metrics Tracking**: Monitor vital signs and health indicators that affect brain health
 - **Stroke Risk Prediction**: AI-powered stroke risk assessment using machine learning models
+- **Brain Scan Analysis**: Detect brain tumors and Alzheimer's disease from MRI scans
 - **Research & Studies**: Access to latest peer-reviewed research on brain health and stroke prevention
 - **Educational Resources**: Curated guides and video content from trusted sources
 - **Cognitive Training Tools**: Interactive exercises for brain health improvement
@@ -18,7 +19,8 @@ BrainWise is a comprehensive web application designed to help users with brain h
 - Node.js 18+ 
 - npm or yarn
 - MongoDB instance (local or Atlas)
-- Google Cloud Storage account (for ML models)
+- Uploadcare account (for image handling)
+- Hugging Face account (for ML model hosting)
 
 ### Installation
 
@@ -39,8 +41,8 @@ BrainWise is a comprehensive web application designed to help users with brain h
    ```
    # Create a .env.local file with the following variables
    MONGODB_URI=your_mongodb_connection_string
-   GOOGLE_CLOUD_PROJECT_ID=your_gcp_project_id
-   GOOGLE_CLOUD_BUCKET_NAME=your_bucket_name
+   NEXT_PUBLIC_UPLOADCARE_PUBLIC_KEY=your_uploadcare_public_key
+   UPLOADCARE_SECRET_KEY=your_uploadcare_secret_key
    SEMANTIC_SCHOLAR_API_KEY=your_api_key
    ```
 
@@ -60,7 +62,8 @@ Detailed documentation can be found in the `/docs` directory:
 - [Architecture Overview](docs/architecture-overview.md)
 - [Authentication System](docs/authentication-system.md)
 - [Health Metrics System](docs/health-metrics-system.md)
-- [ML & Google Cloud Integration](docs/ml-google-cloud-integration.md)
+- [ML Model Hosting](docs/ml-hosting-architecture.md)
+- [Brain Scan Analysis](docs/ml-hosting-guide.md)
 - [Data Visualization](docs/data-visualization.md)
 - [Research Integration](docs/research-integration.md)
 
@@ -70,6 +73,7 @@ Detailed documentation can be found in the `/docs` directory:
 brainwise/
 ├── app/                  # Next.js 14 App Router pages & API routes
 │   ├── api/             # API routes for ML models and data
+│   ├── predictors/      # Brain scan analysis tools (tumor, alzheimers)
 │   ├── research/        # Research papers and studies
 │   ├── tools/           # Brain health tools and assessments
 │   └── dashboard/       # User dashboard and metrics
@@ -87,7 +91,8 @@ brainwise/
 
 - **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS, Shadcn UI
 - **Backend**: Next.js API Routes, MongoDB
-- **Machine Learning**: TensorFlow.js, Google Cloud Storage
+- **Machine Learning**: Hugging Face Spaces, TensorFlow.js
+- **Image Handling**: Uploadcare CDN
 - **Research API**: Semantic Scholar API
 - **Visualization**: Recharts, Framer Motion
 - **Authentication**: Custom auth (with plans to migrate to Clerk)
@@ -96,6 +101,8 @@ brainwise/
 
 - [x] Health metrics tracking system
 - [x] Stroke risk prediction model
+- [x] Brain tumor detection model
+- [x] Alzheimer's detection model
 - [x] Research paper integration
 - [x] Educational resources
 - [x] Cognitive training tools
@@ -109,6 +116,7 @@ BrainWise prioritizes the security and privacy of health data:
 
 - All health data is associated with user IDs
 - Authentication required for all sensitive operations
+- Medical images are securely stored using Uploadcare's HIPAA-compliant storage
 - No third-party access to health information
 - HIPAA-informed practices for handling sensitive data
 - Secure API key management
@@ -136,6 +144,8 @@ Project Link: [https://github.com/AbdullahSaeed1211/brainwise](https://github.co
 - [Next.js](https://nextjs.org/)
 - [Tailwind CSS](https://tailwindcss.com/)
 - [Shadcn UI](https://ui.shadcn.com/)
+- [Uploadcare](https://uploadcare.com/)
+- [Hugging Face](https://huggingface.co/)
 - [Recharts](https://recharts.org/)
 - [Semantic Scholar](https://www.semanticscholar.org/)
 - [TensorFlow.js](https://www.tensorflow.org/js)

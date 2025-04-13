@@ -1,186 +1,122 @@
-// Define the input interface
-export interface StrokeInput {
-  gender: string;
-  age: number;
-  hypertension: number;
-  heartDisease: number;
-  everMarried: string;
-  workType: string;
-  residenceType: string;
-  avgGlucoseLevel: number;
-  bmi: number;
-  smokingStatus: string;
-}
-
-// Define the prediction result interface
-export interface PredictionResult {
-  prediction: string;
-  probability: number;
-}
+import { RISK_CATEGORIES, StrokeRiskInput, PredictionResult } from './types';
 
 /**
- * NOTE: This is a placeholder model that simulates a stroke prediction model.
- * It will be replaced with a real machine learning model in the future.
- * The coefficients are based on medical research but simplified for demonstration.
- * 
- * TODO: Replace with real ML model from Google Cloud buckets/services.
+ * Get risk category based on probability
+ * @param probability The probability of stroke
+ * @returns Risk category
  */
-
-// Encoding maps for categorical variables
-const genderEncoding: Record<string, number[]> = {
-  'male': [1, 0, 0],
-  'female': [0, 1, 0],
-  'other': [0, 0, 1]
-};
-
-const everMarriedEncoding: Record<string, number[]> = {
-  'yes': [1, 0],
-  'no': [0, 1]
-};
-
-const workTypeEncoding: Record<string, number[]> = {
-  'private': [1, 0, 0, 0, 0],
-  'self-employed': [0, 1, 0, 0, 0],
-  'govt_job': [0, 0, 1, 0, 0],
-  'children': [0, 0, 0, 1, 0],
-  'never_worked': [0, 0, 0, 0, 1]
-};
-
-const residenceTypeEncoding: Record<string, number[]> = {
-  'urban': [1, 0],
-  'rural': [0, 1]
-};
-
-const smokingStatusEncoding: Record<string, number[]> = {
-  'formerly smoked': [1, 0, 0, 0],
-  'never smoked': [0, 1, 0, 0],
-  'smokes': [0, 0, 1, 0],
-  'unknown': [0, 0, 0, 1]
-};
-
-// Normalization parameters for numeric features
-const normalization = {
-  age: { mean: 43.22, std: 22.61 },
-  avgGlucoseLevel: { mean: 106.14, std: 45.28 },
-  bmi: { mean: 28.89, std: 7.85 }
-};
-
-// Model coefficients (placeholder values based on medical research)
-// These values are more realistic based on stroke risk factors
-const coefficients = [
-  0.048,  // age (age is a significant risk factor)
-  0.014,  // avgGlucoseLevel (higher glucose levels increase risk)
-  0.025,  // bmi (higher BMI moderately increases risk)
-  0.72,   // hypertension (major risk factor)
-  0.85,   // heartDisease (major risk factor)
-  0.15, -0.12, 0.0,   // gender (male slightly higher risk than female)
-  0.18, 0.0,  // everMarried (slightly higher risk for married, likely age correlation)
-  0.12, 0.15, 0.05, -0.25, 0.0,  // workType (private, self-employed, govt_job, children, never_worked)
-  0.08, -0.05,  // residenceType (urban, rural)
-  0.31, -0.15, 0.42, 0.0  // smokingStatus (formerly smoked, never smoked, smokes, unknown)
-];
-
-// Lower intercept to reflect base stroke rarity
-const intercept = -5.6;  // Add a negative value to reflect the rarity of strokes
-
-/**
- * Preprocesses the input data for the model
- * @param input The stroke input data
- * @returns A tensor of preprocessed features
- */
-function preprocessInput(input: StrokeInput): number[] {
-  // Normalize numeric features
-  const normalizedAge = (input.age - normalization.age.mean) / normalization.age.std;
-  const normalizedGlucose = (input.avgGlucoseLevel - normalization.avgGlucoseLevel.mean) / normalization.avgGlucoseLevel.std;
-  const normalizedBmi = (input.bmi - normalization.bmi.mean) / normalization.bmi.std;
-  
-  // One-hot encode categorical features
-  const genderEncoded = genderEncoding[input.gender.toLowerCase()] || genderEncoding['other'];
-  const marriedEncoded = everMarriedEncoding[input.everMarried.toLowerCase()] || everMarriedEncoding['no'];
-  const workTypeEncoded = workTypeEncoding[input.workType.toLowerCase()] || workTypeEncoding['private'];
-  const residenceEncoded = residenceTypeEncoding[input.residenceType.toLowerCase()] || residenceTypeEncoding['urban'];
-  const smokingEncoded = smokingStatusEncoding[input.smokingStatus.toLowerCase()] || smokingStatusEncoding['unknown'];
-  
-  // Combine all features
-  return [
-    normalizedAge,
-    normalizedGlucose,
-    normalizedBmi,
-    input.hypertension,
-    input.heartDisease,
-    ...genderEncoded,
-    ...marriedEncoded,
-    ...workTypeEncoded,
-    ...residenceEncoded,
-    ...smokingEncoded
-  ];
-}
-
-/**
- * Predicts stroke likelihood using a placeholder logistic regression model
- * This is not a real ML model and will be replaced in the future
- * 
- * @param input The stroke input data
- * @returns The prediction result
- */
-export function predictStroke(input: StrokeInput): PredictionResult {
-  // Preprocess the input
-  const features = preprocessInput(input);
-  
-  // Apply logistic regression (dot product of features and coefficients + intercept)
-  let logit = intercept;
-  for (let i = 0; i < Math.min(features.length, coefficients.length); i++) {
-    logit += features[i] * coefficients[i];
+export function getRiskCategory(probability: number): string {
+  for (const [category, threshold] of Object.entries(RISK_CATEGORIES)) {
+    if (probability <= threshold) {
+      return category;
+    }
   }
-  
-  // Apply sigmoid function to get probability
-  const probability = 1 / (1 + Math.exp(-logit));
-  
-  // Determine prediction category based on probability thresholds
-  let prediction: string;
-  if (probability < 0.1) {
-    prediction = "Very Low Risk";
-  } else if (probability < 0.2) {
-    prediction = "Low Risk";
-  } else if (probability < 0.5) {
-    prediction = "Moderate Risk";
-  } else if (probability < 0.7) {
-    prediction = "High Risk";
-  } else {
-    prediction = "Very High Risk";
-  }
-  
-  return {
-    prediction,
-    probability
-  };
+  return Object.keys(RISK_CATEGORIES)[Object.keys(RISK_CATEGORIES).length - 1];
 }
 
 /**
- * Maps form input to the expected model input format
- * @param formData The form data from the UI
- * @returns Properly formatted input for the model
+ * Maps form data to model input format
+ * @param formData User-provided form data
+ * @returns Formatted input for model
  */
-export function mapFormToModelInput(formData: Record<string, string | number>): StrokeInput {
-  // Map work type to expected format
-  const workTypeMapping: Record<string, string> = {
-    "Government job": "govt_job",
-    "Children": "children",
-    "Never Worked": "never_worked",
-    "Private": "private",
-    "Self-employed": "self-employed"
-  };
-
+export function mapFormToModelInput(formData: Record<string, unknown>): StrokeRiskInput {
   return {
     gender: String(formData.gender),
     age: Number(formData.age),
-    hypertension: Number(formData.hypertension),
-    heartDisease: Number(formData.heartDisease),
-    everMarried: String(formData.everMarried),
-    workType: workTypeMapping[String(formData.workType)] || String(formData.workType).toLowerCase(),
-    residenceType: String(formData.residenceType),
+    hypertension: formData.hypertension ? 1 : 0,
+    heartDisease: formData.heartDisease ? 1 : 0,
+    everMarried: formData.everMarried ? "Yes" : "No",
+    workType: String(formData.workType || "Private"),
+    residenceType: String(formData.residenceType || "Urban"),
     avgGlucoseLevel: Number(formData.avgGlucoseLevel),
     bmi: Number(formData.bmi),
-    smokingStatus: String(formData.smokingStatus)
+    smokingStatus: String(formData.smokingStatus || "never smoked")
   };
+}
+
+/**
+ * Predicts stroke risk using the Hugging Face API
+ * @param data Stroke risk input data
+ * @returns Prediction result with probability and risk category
+ */
+export async function predictStroke(data: StrokeRiskInput): Promise<PredictionResult> {
+  try {
+    const response = await fetch("https://abdullah1211-ml-stroke.hf.space", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        gender: data.gender,
+        age: data.age,
+        hypertension: data.hypertension,
+        heart_disease: data.heartDisease,
+        ever_married: data.everMarried,
+        work_type: data.workType,
+        Residence_type: data.residenceType,
+        avg_glucose_level: data.avgGlucoseLevel,
+        bmi: data.bmi,
+        smoking_status: data.smokingStatus
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error("API request failed");
+    }
+    
+    const result = await response.json();
+    
+    return {
+      prediction: result.prediction,
+      probability: result.probability,
+      riskCategory: getRiskCategory(result.probability),
+      riskFactors: calculateRiskFactors(data),
+      modelStatus: "production"
+    };
+  } catch (error) {
+    console.error("Error calling stroke prediction API:", error);
+    
+    // Fallback to temporary model if API fails
+    return fallbackPrediction(data);
+  }
+}
+
+/**
+ * Temporary fallback model used when API is unavailable
+ * This uses a simple rule-based approach to estimate stroke risk
+ */
+function fallbackPrediction(data: StrokeRiskInput): PredictionResult {
+  let riskScore = 0;
+  const riskFactors = calculateRiskFactors(data);
+  
+  // Simplified risk calculation based on risk factor count
+  riskScore = riskFactors.length * 0.1;
+  
+  // Cap at 0.9 for fallback model
+  const probability = Math.min(riskScore, 0.9);
+  
+  return {
+    prediction: probability > 0.5 ? "Stroke Risk Detected" : "Low Stroke Risk",
+    probability,
+    riskCategory: getRiskCategory(probability),
+    riskFactors,
+    modelStatus: "fallback"
+  };
+}
+
+/**
+ * Calculates risk factors based on input data
+ */
+function calculateRiskFactors(data: StrokeRiskInput): string[] {
+  const riskFactors = [];
+  
+  if (data.age > 65) riskFactors.push("Age > 65");
+  if (data.hypertension === 1) riskFactors.push("Hypertension");
+  if (data.heartDisease === 1) riskFactors.push("Heart Disease");
+  if (data.avgGlucoseLevel > 140) riskFactors.push("High Blood Glucose");
+  if (data.bmi > 30) riskFactors.push("Obesity (BMI > 30)");
+  if (data.smokingStatus === "formerly smoked") riskFactors.push("Former Smoker");
+  if (data.smokingStatus === "smokes") riskFactors.push("Current Smoker");
+  
+  return riskFactors;
 } 

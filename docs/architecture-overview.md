@@ -46,7 +46,7 @@ BrainWise is a modern web application built with Next.js 14 using the App Router
 - **API**: Next.js Route Handlers
 - **Authentication**: Mock auth (to be replaced with Clerk)
 - **Database**: MongoDB (accessed via Mongoose ODM)
-- **Storage**: Google Cloud Storage for ML models
+- **Storage**: Uploadcare for medical images and Hugging Face for ML models
 - **Machine Learning**: TensorFlow.js (client-side inference)
 
 ### DevOps & Infrastructure
@@ -136,6 +136,45 @@ Currently using a mock authentication implementation in `lib/auth.mock.ts`, desi
 │  Personalized │◄────┤  ML analysis  │◄────┤  MongoDB      │
 │  suggestions  │     │  & insights   │     │  game results │
 └───────────────┘     └───────────────┘     └───────────────┘
+```
+
+### ML Prediction Flow
+
+```
+┌─────────────┐     ┌────────────┐     ┌────────────────┐
+│  User Input  │────▶│  Next.js   │────▶│ API Validation │
+└─────────────┘     │  Frontend  │     └────────────────┘
+                    └────────────┘              │
+                          ▲                     ▼
+                          │             ┌────────────────┐
+┌─────────────┐           │             │ MongoDB Logging │
+│   Results   │◀──────────┤             └────────────────┘
+└─────────────┘           │                     │
+                          │                     ▼
+                    ┌────────────┐     ┌────────────────┐
+                    │ API Routes │◀────│ ML Model API   │
+                    └────────────┘     └────────────────┘
+```
+
+### Brain Scan Analysis Flow
+
+```
+┌─────────────┐     ┌────────────┐     ┌────────────────┐
+│  User       │────▶│  Upload to │────▶│ CDN URL        │
+│  Image      │     │ Uploadcare │     │ Generated      │
+└─────────────┘     └────────────┘     └────────────────┘
+                                                │
+                                                ▼
+┌─────────────┐     ┌────────────┐     ┌────────────────┐
+│  Analysis   │◀────│ API Routes │◀────│ Send URL to    │
+│  Results    │     │            │     │ Server API     │
+└─────────────┘     └────────────┘     └────────────────┘
+                          ▲                     │
+                          │                     ▼
+                    ┌────────────┐     ┌────────────────┐
+                    │ Results    │◀────│ Hugging Face   │
+                    │ Processing │     │ Model API      │
+                    └────────────┘     └────────────────┘
 ```
 
 ## Directory Structure

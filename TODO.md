@@ -40,22 +40,14 @@
 - [x] Set up ML model loading infrastructure
 - [x] Implement stroke prediction model with fallback
 - [x] Implement Alzheimer's prediction model with fallback
-- [ ] Set up Google Cloud Storage for ML model hosting
+- [x] Set up Hugging Face Spaces for ML model hosting
+- [x] Implement brain scan analysis using medical imaging AI services
 - [ ] Create model conversion pipeline for TensorFlow.js models
 - [ ] Implement model versioning and A/B testing
-- [ ] Implement brain scan analysis using medical imaging AI services
 - [ ] Create admin dashboard for monitoring model performance
 - [ ] Add model version tracking and performance metrics
 - [ ] Implement health metrics analysis with ML correlations
 - [ ] Develop personalized recommendations based on health data
-
-## Google Cloud Integration
-- [ ] Set up GCS buckets with appropriate permissions *(Note: Buckets created but empty)*
-- [ ] Create CI/CD pipeline for model deployment to GCS
-- [ ] Implement signed URLs for secure model access
-- [ ] Add model monitoring and analytics
-- [ ] Optimize model size and loading performance
-- [ ] Implement model pre-warming and server-side caching 
 
 ## Newsletter Implementation
 - [ ] Complete newsletter-signup component
@@ -66,7 +58,13 @@
 
 ## Additional Features
 - [x] User data export functionality
+- [x] Implement advanced health metrics dashboard
+- [x] Set up MongoDB schemas for user metrics
+- [x] Create the stroke risk prediction page
 - [ ] Enhanced visualization of cognitive trends
+- [ ] Add more cognitive tests
+- [ ] Expand research database
+- [ ] Optimize database queries
 - [ ] Integration with wearable devices for health metrics *(Removed from current scope)*
 - [ ] Mobile app version using React Native
 - [ ] Personalized health recommendations based on user data
@@ -90,8 +88,13 @@
 ## Documentation
 - [x] Create user guide documentation
 - [ ] Add API documentation for developers
-- [ ] Document data models and schemas
-- [ ] Create developer onboarding guide 
-- [ ] Document ML model architecture and requirements
-- [ ] Create documentation for health metrics tracking system
-- [ ] Add guide for deploying ML models to Google Cloud Storage 
+- [x] Document ML model endpoints and usage
+- [ ] Document health metrics tracking system
+- [x] Add guide for deploying ML models to Hugging Face Spaces
+
+## Model Hosting & Image Storage
+- [x] Deploy ML models to Hugging Face Spaces with appropriate endpoints
+- [x] Set up Uploadcare for medical image storage
+- [x] Implement client-side upload to Uploadcare
+- [x] Create assessment tracking and polling system
+- [ ] Add more robust model monitoring and analytics 
