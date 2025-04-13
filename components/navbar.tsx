@@ -103,7 +103,7 @@ export function Navbar() {
         </div>
         
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-6">
+        <nav className="hidden lg:flex items-center gap-6">
           {/* Main nav items without dropdown */}
           {mainNavItems.map((item) => (
             <Link
@@ -246,7 +246,7 @@ export function Navbar() {
           </DropdownMenu>
         </nav>
         
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden lg:flex items-center gap-4">
           <ThemeToggle />
           
           {isSignedIn ? (
@@ -279,7 +279,7 @@ export function Navbar() {
         </div>
         
         {/* Mobile Menu */}
-        <div className="flex md:hidden items-center gap-4">
+        <div className="flex lg:hidden items-center gap-4">
           <ThemeToggle />
           
           <Sheet open={open} onOpenChange={setOpen}>
