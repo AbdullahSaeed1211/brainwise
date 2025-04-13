@@ -53,7 +53,6 @@ import {
 const mainNavItems = [
   { name: "Home", href: "/" },
   { name: "Dashboard", href: "/dashboard" },
-  { name: "Stroke Predictor", href: "/stroke-prediction", icon: <Heart className="h-4 w-4" /> },
   { name: "AI Chatbot", href: "/chatbot", icon: <MessagesSquare className="h-4 w-4" /> }, 
 ];
 
