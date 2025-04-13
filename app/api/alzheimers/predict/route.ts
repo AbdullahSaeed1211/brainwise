@@ -5,6 +5,7 @@ import User from "@/lib/models/User";
 import Assessment from "@/lib/models/Assessment";
 import { predictAlzheimers } from "@/lib/ml/alzheimers-model";
 import { preloadModels } from "@/lib/ml/model-loader";
+import mongoose from "mongoose";
 
 export const POST = withAuth(async (request: NextRequest, userId: string) => {
   try {
@@ -66,7 +67,7 @@ export const POST = withAuth(async (request: NextRequest, userId: string) => {
     const prediction = await predictAlzheimers(inputData, options);
     
     // Save the assessment result
-    await Assessment.create({
+    const assessment = await Assessment.create({
       user: user._id,
       type: 'alzheimers-risk',
       result: prediction.prediction,
@@ -79,6 +80,32 @@ export const POST = withAuth(async (request: NextRequest, userId: string) => {
       },
       date: new Date()
     });
+    
+    // Log activity for completed assessment
+    try {
+      const Activity = mongoose.models.Activity || 
+        (await import("@/lib/models/Activity")).default;
+      
+      await Activity.create({
+        user: user._id,
+        activityType: "assessment-completed",
+        completedAt: new Date(),
+        duration: 0, // Immediate calculation
+        metadata: {
+          assessmentId: assessment._id,
+          assessmentType: 'alzheimers-risk',
+          result: prediction.prediction,
+          riskLevel: prediction.riskLevel,
+          probability: prediction.probability,
+          riskFactors: riskFactors
+        }
+      });
+      
+      console.log(`✅ [Alzheimer's Risk] Activity logged for user ${user._id}`);
+    } catch (activityError) {
+      console.error("❌ [Alzheimer's Risk] Error logging activity:", activityError);
+      // Don't fail the whole request if activity logging fails
+    }
     
     // Return prediction results
     return NextResponse.json({

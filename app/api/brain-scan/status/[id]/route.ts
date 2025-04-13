@@ -3,9 +3,6 @@ import { protectApiRoute, createErrorResponse } from "@/lib/auth";
 import db from "@/lib/mongodb";
 import Assessment from "@/lib/models/Assessment";
 
-// Flag to indicate ML model is under construction
-const ML_MODEL_UNDER_CONSTRUCTION = true;
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -33,13 +30,10 @@ export async function GET(
         return createErrorResponse("Unauthorized", 403);
       }
       
-      // Return the current status with construction info if appropriate
+      // Return the current status
       return NextResponse.json({
         status: assessment.data.status || "unknown",
-        result: assessment.data.status === "completed" ? assessment.data.result : null,
-        modelStatus: ML_MODEL_UNDER_CONSTRUCTION ? "under_construction" : "production",
-        note: ML_MODEL_UNDER_CONSTRUCTION && assessment.data.status !== "completed" ? 
-          "ML model integration pending. Status updates will be simulated." : undefined
+        result: assessment.data.status === "completed" ? assessment.data.result : null
       });
       
     } catch (error) {

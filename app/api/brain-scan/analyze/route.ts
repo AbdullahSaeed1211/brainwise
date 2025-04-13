@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { withAuth, createErrorResponse } from "@/lib/auth";
 import db from "@/lib/mongodb";
 import Assessment from "@/lib/models/Assessment";
+import mongoose from "mongoose";
 
-// Flag to indicate if we use the real models or placeholder data
-const USE_ML_MODELS = true;
 // URLs for the Hugging Face model APIs
 const TUMOR_DETECTION_API = "https://abdullah1211-ml-tumor.hf.space";
 const ALZHEIMERS_API = "https://abdullah1211-ml-alzheimers.hf.space";
@@ -89,13 +88,13 @@ export const POST = withAuth(async (request: NextRequest, userId: string) => {
     const assessmentData = {
       userId,
       type: scanType,
-      result: USE_ML_MODELS ? 'Analyzing...' : 'Pending ML integration',
+      result: 'Analyzing...',
       risk: 'pending',
       data: { 
         fileUrl,
         status: 'processing',
         submitted: new Date(),
-        modelStatus: USE_ML_MODELS ? 'processing' : 'under_construction'
+        modelStatus: 'processing'
       },
       date: new Date(),
     };
@@ -104,73 +103,68 @@ export const POST = withAuth(async (request: NextRequest, userId: string) => {
     
     console.log("✅ [Brain Scan] Assessment record created");
     
-    // Process the scan
-    if (USE_ML_MODELS) {
-      console.log(`🧠 [Brain Scan] Processing with ${scanType} model`);
-      
-      // Process asynchronously to not block the response
-      (async () => {
+    // Process the scan asynchronously to not block the response
+    (async () => {
+      try {
+        // Call the model API
+        const analysisResult = await analyzeScanWithModel(fileUrl, scanType);
+        
+        // Update the database with results
+        await db.connect();
+        await Assessment.findByIdAndUpdate(assessment._id, {
+          result: analysisResult.conclusion,
+          risk: analysisResult.confidence > 0.7 ? "high" : 
+               analysisResult.confidence > 0.3 ? "moderate" : "low",
+          "data.status": "completed",
+          "data.result": analysisResult
+        });
+        
+        // Log activity for the completed assessment
         try {
-          // Call the model API
-          const analysisResult = await analyzeScanWithModel(fileUrl, scanType);
+          const Activity = mongoose.models.Activity || 
+            (await import("@/lib/models/Activity")).default;
           
-          // Update the database with results
-          await db.connect();
-          await Assessment.findByIdAndUpdate(assessment._id, {
-            result: analysisResult.conclusion,
-            risk: analysisResult.confidence > 0.7 ? "high" : 
-                 analysisResult.confidence > 0.3 ? "moderate" : "low",
-            "data.status": "completed",
-            "data.result": analysisResult
-          });
-          
-          console.log(`✅ [Brain Scan] Analysis completed for ${assessment._id}`);
-        } catch (err: unknown) {
-          console.error("❌ [Brain Scan] Error in analysis:", err);
-          
-          // Update with error information
-          await db.connect();
-          await Assessment.findByIdAndUpdate(assessment._id, {
-            result: "Analysis failed",
-            "data.status": "failed",
-            "data.error": err instanceof Error ? err.message : String(err)
-          });
-        }
-      })();
-    } else {
-      console.log("⚠️ [Brain Scan] ML model under construction - using placeholder");
-      
-      // Simulating a scheduled analysis completion
-      setTimeout(async () => {
-        try {
-          await db.connect();
-          
-          // Simulate analysis results with placeholder data
-          await Assessment.findByIdAndUpdate(assessment._id, {
-            result: "No anomalies detected (simulated)",
-            risk: "low",
-            "data.status": "completed",
-            "data.result": {
-              conclusion: "No anomalies detected (simulated)",
-              confidence: 0.87,
-              processingTime: "00:12:34",
-              note: "This is placeholder data. Real ML analysis pending implementation."
+          await Activity.create({
+            user: assessment.userId,
+            activityType: "assessment-completed",
+            completedAt: new Date(),
+            duration: (Date.now() - new Date(assessment.date).getTime()) / 1000, // Convert ms to seconds
+            metadata: {
+              assessmentId: assessment._id,
+              assessmentType: scanType,
+              result: analysisResult.conclusion,
+              confidence: analysisResult.confidence,
+              risk: analysisResult.confidence > 0.7 ? "high" : 
+                   analysisResult.confidence > 0.3 ? "moderate" : "low",
             }
           });
           
-          console.log(`✅ [Brain Scan] Simulated analysis completed for ${assessment._id}`);
-        } catch (err) {
-          console.error("❌ [Brain Scan] Error in simulated analysis:", err);
+          console.log(`✅ [Brain Scan] Activity logged for user ${assessment.userId} - ${scanType} assessment`);
+        } catch (activityError) {
+          console.error("❌ [Brain Scan] Error logging activity:", activityError);
+          // Don't fail the whole process if activity logging fails
         }
-      }, 30000); // Simulate 30 second processing time
-    }
+        
+        console.log(`✅ [Brain Scan] Analysis completed for ${assessment._id}`);
+      } catch (err: unknown) {
+        console.error("❌ [Brain Scan] Error in analysis:", err);
+        
+        // Update with error information
+        await db.connect();
+        await Assessment.findByIdAndUpdate(assessment._id, {
+          result: "Analysis failed",
+          "data.status": "failed",
+          "data.error": err instanceof Error ? err.message : String(err)
+        });
+      }
+    })();
     
     return NextResponse.json({
       message: "Scan uploaded successfully and queued for analysis",
       assessmentId: assessment._id,
       status: "processing",
-      modelStatus: USE_ML_MODELS ? "processing" : "under_construction",
-      estimatedTime: USE_ML_MODELS ? "10-30 seconds" : "30 seconds (simulated)"
+      modelStatus: "processing",
+      estimatedTime: "10-30 seconds"
     });
     
   } catch (error) {

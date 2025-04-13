@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ActivityHistory } from "@/components/activity-history";
 import { CognitiveScoreCard } from "@/components/cognitive-score-card";
 import { DailyChallenge } from "@/components/daily-challenge";
 import { Brain, Activity, FileText, Zap, Target, Info, Heart, TrendingUp, History } from "lucide-react";
@@ -13,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@clerk/nextjs";
 import { format } from "date-fns";
+import { RecentActivity } from "@/components/recent-activity";
 
 // Define health metrics types
 interface HealthMetric {
@@ -278,7 +278,7 @@ export default function DashboardClient() {
         </TabsList>
         
         <TabsContent value="activity">
-          <ActivityHistory />
+          <RecentActivity />
         </TabsContent>
         
         <TabsContent value="insights" className="space-y-4">

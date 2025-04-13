@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { protectApiRoute } from '@/lib/auth';
 import { predictStroke, StrokeRiskInput } from '@/lib/ml/stroke-model';
 import { preloadModels } from '@/lib/ml/model-loader';
+import mongoose from 'mongoose';
 
 export async function POST(req: NextRequest) {
   return protectApiRoute(async () => {
@@ -71,6 +72,42 @@ export async function POST(req: NextRequest) {
       
       // Save the prediction to the database if needed
       // This would be implemented here
+      
+      // Log activity for stroke risk calculation
+      try {
+        const userId = req.headers.get('x-user-id');
+        
+        if (userId) {
+          const Activity = mongoose.models.Activity || 
+            (await import("@/lib/models/Activity")).default;
+          
+          await Activity.create({
+            user: userId,
+            activityType: "stroke-risk-calculated",
+            completedAt: new Date(),
+            duration: 0, // Immediate calculation
+            metadata: {
+              riskProbability: prediction.probability,
+              riskCategory: prediction.prediction,
+              riskFactors: prediction.riskFactors || [],
+              inputData: {
+                age: inputData.age,
+                gender: inputData.gender,
+                // Include non-sensitive data
+                bmi: inputData.bmi,
+                smokingStatus: inputData.smokingStatus,
+                workType: inputData.workType,
+                residenceType: inputData.residenceType
+              }
+            }
+          });
+          
+          console.log(`✅ [Stroke Risk] Activity logged for user ${userId}`);
+        }
+      } catch (activityError) {
+        console.error("❌ [Stroke Risk] Error logging activity:", activityError);
+        // Don't fail the whole request if activity logging fails
+      }
       
       return NextResponse.json(prediction);
     } catch (error) {
