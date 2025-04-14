@@ -32,12 +32,21 @@ export const metadata: Metadata = {
     title: "Brainwise: Complete Brain Health Toolkit",
     description: "Train, assess, and optimize your brain health with our comprehensive suite of cognitive tools",
     siteName: "Brainwise",
+    images: [
+      {
+        url: "/brain-hero.png",
+        width: 1200,
+        height: 630,
+        alt: "Brainwise - Complete Brain Health Toolkit"
+      }
+    ]
   },
   twitter: {
     card: "summary_large_image",
     title: "Brainwise: Complete Brain Health Toolkit",
     description: "Train, assess, and optimize your brain health with our comprehensive suite of cognitive tools",
-    creator: "@brainwise"
+    creator: "@brainwise",
+    images: ["/brain-hero.png"]
   },
   robots: {
     index: true,
