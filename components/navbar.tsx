@@ -21,13 +21,16 @@ import {
   Shield,
   Activity,
   Stethoscope,
-  BrainCircuit
+  BrainCircuit,
+  Home,
+  LayoutDashboard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
   Sheet, 
   SheetContent, 
-  SheetTrigger
+  SheetTrigger,
+  SheetTitle
 } from "@/components/ui/sheet";
 import { useState } from "react";
 import {
@@ -51,8 +54,8 @@ import {
 
 // Replace the flat nav items with categorized items
 const mainNavItems = [
-  { name: "Home", href: "/" },
-  { name: "Dashboard", href: "/dashboard" },
+  { name: "Home", href: "/", icon: <Home className="h-4 w-4" /> },
+  { name: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
   { name: "AI Chatbot", href: "/chatbot", icon: <MessagesSquare className="h-4 w-4" /> }, 
 ];
 
@@ -119,17 +122,12 @@ export function Navbar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "text-sm font-medium transition-colors hover:text-primary",
+                "text-sm font-medium transition-colors hover:text-primary flex items-center gap-1.5",
                 pathname === item.href ? "text-primary" : "text-muted-foreground"
               )}
             >
-              {item.icon && (
-                <span className="flex items-center gap-1.5">
-                  {item.icon}
-                  {item.name}
-                </span>
-              )}
-              {!item.icon && item.name}
+              {item.icon}
+              <span>{item.name}</span>
             </Link>
           ))}
 
@@ -335,6 +333,7 @@ export function Navbar() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px] pr-0">
+              <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
               <div className="flex flex-col h-full">
                 <div className="flex items-center justify-between px-2 mb-6">
                   <Link 
@@ -367,12 +366,13 @@ export function Navbar() {
                             key={item.href}
                             href={item.href}
                             className={cn(
-                              "text-sm transition-colors hover:text-primary",
+                              "flex items-center text-sm transition-colors hover:text-primary",
                               pathname === item.href ? "text-primary font-medium" : "text-muted-foreground"
                             )}
                             onClick={() => setOpen(false)}
                           >
-                            {item.name}
+                            {item.icon}
+                            <span className="ml-2">{item.name}</span>
                           </Link>
                         ))}
                       </div>
