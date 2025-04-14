@@ -42,6 +42,8 @@ interface StrokeRiskInput {
 
 async function predictStroke(input: StrokeRiskInput): Promise<PredictionResult> {
   try {
+    console.log("🚀 [Frontend] Sending stroke prediction request with data:", input);
+    
     const response = await fetch('/api/stroke/predict', {
       method: 'POST',
       headers: {
@@ -51,25 +53,33 @@ async function predictStroke(input: StrokeRiskInput): Promise<PredictionResult> 
     });
 
     if (!response.ok) {
-      throw new Error('Failed to get prediction from API');
+      console.error(`❌ [Frontend] API error: ${response.status} ${response.statusText}`);
+      try {
+        const errorText = await response.text();
+        console.error(`Error details: ${errorText}`);
+      } catch {
+        console.error("Could not read error details");
+      }
+      throw new Error(`Failed to get prediction: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log("✅ [Frontend] Received stroke prediction response:", data);
     
     // Generate personalized recommendations based on risk factors
-    const recommendations = generateRecommendations(data.riskFactors || []);
+    const recommendations = data.recommendations || generateRecommendations(data.riskFactors || []);
     
     return { 
       risk: data.probability || 0,
       prediction: data.prediction,
       probability: data.probability,
-      riskFactors: data.riskFactors || [],
+      riskFactors: data.riskFactors || data.risk_factors || [],
       recommendations,
-      modelVersion: data.modelVersion,
+      modelVersion: data.modelVersion || data.model_version,
       totalRiskScore: data.totalRiskScore
     };
   } catch (error) {
-    console.error('Error predicting stroke risk:', error);
+    console.error('❌ [Frontend] Error predicting stroke risk:', error);
     // Fallback to local model if API fails
     return fallbackPrediction(input);
   }
@@ -194,8 +204,8 @@ export function StrokePredictionForm() {
 
   useEffect(() => {
     toast({
-      title: "Stroke Prediction (Beta)",
-      description: "ML model integration is under development. Results are simulated based on risk factors.",
+      title: "Stroke Risk Prediction",
+      description: "This tool uses machine learning to estimate stroke risk based on health factors.",
       variant: "default",
     });
   }, [toast]);

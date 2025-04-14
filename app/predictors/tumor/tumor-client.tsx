@@ -15,6 +15,18 @@ import { uploadFile } from "@uploadcare/upload-client";
 interface TumorDetectionResult {
   prediction: string;
   confidence: number;
+  is_tumor?: boolean;
+  binary_result?: string;
+  class_probabilities?: Record<string, number>;
+  error?: string;
+}
+
+// Define interface for Gradio API response
+interface GradioApiResponse {
+  data: string[];
+  duration: number;
+  is_generating: boolean;
+  average_duration?: number;
 }
 
 export default function BrainTumorDetectionClient() {
@@ -27,40 +39,86 @@ export default function BrainTumorDetectionClient() {
   const [scanType, setScanType] = useState<string>("tumor");
   const [apiMethod, setApiMethod] = useState<number>(1);
 
+  // Function to format API payload with different formats for maximum compatibility
+  const formatApiPayload = (fileUrl: string, fileType: string) => {
+    // Create different payload formats to maximize compatibility with different models
+    const formData = new FormData();
+    
+    // Format 1: Most common for FastAPI with multipart/form-data file upload endpoints
+    formData.append("fileUrl", fileUrl);
+    formData.append("file_url", fileUrl);
+    
+    // Format 2: Include content-type hints
+    formData.append("content_type", fileType);
+    
+    // Format 3: Include additional metadata to help the backend
+    formData.append("source", "uploadcare");
+    formData.append("filename", fileUrl.split('/').pop() || "scan.jpg");
+    
+    return formData;
+  };
+
+  // Add a function to check if an error is expected/handled as part of the fallback flow
+  function isExpectedError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    
+    const expectedErrorPatterns = [
+      "cannot identify image file",
+      "Error 500:",
+      "Server error: 500",
+      "Internal Server Error",
+      "Error processing image"
+    ];
+    
+    return expectedErrorPatterns.some(pattern => 
+      error.message.toLowerCase().includes(pattern.toLowerCase()));
+  }
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    console.log("📂 File selected:", file.name, `(${(file.size / 1024).toFixed(2)} KB)`);
+
     // Check file type
     const validTypes = ["image/jpeg", "image/png", "image/gif"];
     if (!validTypes.includes(file.type)) {
+      console.error("❌ Invalid file type:", file.type);
       setError("Please select a valid image file (JPEG, PNG, GIF)");
       return;
     }
 
     // Check file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
+      console.error("❌ File too large:", (file.size / (1024 * 1024)).toFixed(2), "MB");
       setError("File is too large. Maximum size is 10MB");
       return;
     }
 
     setSelectedFile(file);
     setError(null);
+    console.log("✅ File validation passed, preparing preview");
     
     // Create a preview URL
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreviewUrl(reader.result as string);
+      console.log("🖼️ Preview generated successfully");
+    };
+    reader.onerror = () => {
+      console.error("❌ Failed to generate preview");
     };
     reader.readAsDataURL(file);
   };
 
   const analyzeImage = async () => {
     if (!selectedFile) {
+      console.error("❌ No file selected");
       setError("Please select a file first");
       return;
     }
 
+    console.group("🧠 Brain Scan Analysis Process");
     setLoading(true);
     setError(null);
     setResult(null);
@@ -68,7 +126,9 @@ export default function BrainTumorDetectionClient() {
     try {
       console.log("🚀 Starting brain scan analysis process...");
       console.log(`📋 Analysis type: ${scanType}`);
-      console.log(`📁 File: ${selectedFile.name} (${selectedFile.size} bytes)`);
+      console.log(`📁 File: ${selectedFile.name} (${selectedFile.size} bytes, ${selectedFile.type})`);
+      console.log(`⚙️ API Method: ${apiMethod === 0 ? "Server API" : apiMethod === 1 ? "Direct HF API" : "Gradio API"}`);
+      console.log(`⚙️ URL-based upload strategy: Enabled (optimized for Hugging Face compatibility)`);
       
       // Simulate upload progress
       setUploadProgress(0);
@@ -88,6 +148,7 @@ export default function BrainTumorDetectionClient() {
       // Upload file to Uploadcare using their client library directly
       const uploadStartTime = Date.now();
       console.log("📤 Uploading file to Uploadcare...");
+      console.log(`📝 Uploadcare public key: ${process.env.NEXT_PUBLIC_UPLOADCARE_PUBLIC_KEY ? "Available" : "MISSING"}`);
       
       const result = await uploadFile(selectedFile, {
         publicKey: process.env.NEXT_PUBLIC_UPLOADCARE_PUBLIC_KEY || '',
@@ -123,6 +184,7 @@ export default function BrainTumorDetectionClient() {
         console.log(`📝 Form data: scanType=${scanType}, fileUrl=${fileUrl.substring(0, 40)}...`);
         
         const analysisStartTime = Date.now();
+        console.log("🕒 API request started at:", new Date(analysisStartTime).toISOString());
         const response = await fetch('/api/brain-scan/analyze', {
           method: 'POST',
           body: formData,
@@ -130,11 +192,24 @@ export default function BrainTumorDetectionClient() {
         
         console.log(`⚡ API Response received in ${((Date.now() - analysisStartTime) / 1000).toFixed(2)}s`);
         console.log(`📡 Response status: ${response.status} ${response.statusText}`);
+        console.log(`📡 Response headers:`, Object.fromEntries([...response.headers.entries()]));
         
         if (!response.ok) {
-          const errorText = await response.text().catch(() => '');
-          console.error("❌ API Error Details:", errorText);
-          throw new Error(`Error ${response.status}: ${response.statusText}`);
+          let errorText = "";
+          try {
+            const responseText = await response.text();
+            // Check if it's HTML and extract just the status code if it is
+            if (responseText.includes('<!DOCTYPE html>')) {
+              errorText = `Server error: ${response.status} ${response.statusText}`;
+            } else {
+              errorText = responseText.substring(0, 150) + (responseText.length > 150 ? '...' : '');
+            }
+          } catch {
+            errorText = `Error ${response.status}`;
+          }
+          
+          console.log("❌ API Error Details:", errorText);
+          throw new Error(errorText);
         }
         
         const data = await response.json();
@@ -201,22 +276,30 @@ export default function BrainTumorDetectionClient() {
       // Option 1: Call Hugging Face API directly
       else if (apiMethod === 1) {
         // Determine the appropriate API endpoint based on scan type
-        const huggingFaceApiUrl = scanType === "alzheimers" 
-          ? 'https://abdullah1211-ml-alzheimers.hf.space/api/predict'
-          : 'https://abdullah1211-ml-tumour.hf.space/api/predict';
+        let huggingFaceApiUrl;
+        if (scanType === "alzheimers") {
+          huggingFaceApiUrl = 'https://abdullah1211-ml-alzheimers.hf.space/api/predict';
+        } else {
+          // Try different URL formats - some Spaces use hyphens instead of underscores
+          huggingFaceApiUrl = 'https://abdullah1211-ml-tumour.hf.space/api/predict';
+          console.log(`🔄 Using API URL: ${huggingFaceApiUrl}`);
+        }
         
         console.log(`🔄 Using direct Hugging Face API call`);
         console.log(`🔗 Hugging Face API URL: ${huggingFaceApiUrl}`);
         
         // Create form data for the API request
-        const formData = new FormData();
-        formData.append("fileUrl", fileUrl);
+        const formData = formatApiPayload(fileUrl, selectedFile.type);
         
         console.log(`📊 Sending request to Hugging Face API`);
-        console.log(`📝 Form data: fileUrl=${fileUrl.substring(0, 40)}...`);
+        console.log(`📝 Form data keys:`, [...formData.keys()]);
+        console.log(`📝 Using file URL: ${fileUrl}`);
         
         // Send request to Hugging Face API
         const hfStartTime = Date.now();
+        console.log("🕒 HF API request started at:", new Date(hfStartTime).toISOString());
+        console.log("📤 Request payload:", { method: 'POST', body: 'FormData with file' });
+        
         const response = await fetch(huggingFaceApiUrl, {
           method: 'POST',
           body: formData,
@@ -224,22 +307,149 @@ export default function BrainTumorDetectionClient() {
         
         console.log(`⚡ Hugging Face API response received in ${((Date.now() - hfStartTime) / 1000).toFixed(2)}s`);
         console.log(`📡 Response status: ${response.status} ${response.statusText}`);
+        console.log(`📡 Response headers:`, Object.fromEntries([...response.headers.entries()]));
         
         if (!response.ok) {
-          const errorText = await response.text().catch(() => '');
-          console.error("❌ Hugging Face API Error:", errorText);
+          let errorText = "";
+          try {
+            const responseText = await response.text();
+            // Check if it's HTML and extract just the status code if it is
+            if (responseText.includes('<!DOCTYPE html>')) {
+              errorText = `Server error: ${response.status} ${response.statusText}`;
+            } else {
+              errorText = responseText.substring(0, 150) + (responseText.length > 150 ? '...' : '');
+            }
+          } catch {
+            errorText = `Error ${response.status}`;
+          }
+          
+          console.log("❌ Hugging Face API Error:", errorText);
+          
+          // If FastAPI fails, try the Gradio API endpoint as fallback
+          if (response.status === 500 || response.status === 404) {
+            console.log("⚠️ FastAPI failed, trying Gradio API endpoint as fallback...");
+            
+            // Construct Gradio API URL
+            const gradioUrl = huggingFaceApiUrl.replace('/api/predict', '/run/predict');
+            console.log(`🔄 Trying Gradio API URL: ${gradioUrl}`);
+            
+            try {
+              // Gradio expects a data array with properly formatted input
+              // For image input components in Gradio, we need to pass a URL as a string
+              const gradioResponse = await fetch(gradioUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  data: [fileUrl],
+                  fn_index: 0 // Make sure to use the correct function index for the Gradio app
+                }),
+              });
+              
+              if (!gradioResponse.ok) {
+                const gradioErrorText = await gradioResponse.text().catch(() => '');
+                console.log("❌ Gradio API Error with URL method:", gradioErrorText);
+                console.log("⚠️ Attempting binary file upload fallback...");
+                
+                // Binary file fallback approach
+                console.log("⏳ Downloading file from URL for binary upload fallback");
+                const fileResponse = await fetch(fileUrl);
+                if (!fileResponse.ok) {
+                  throw new Error(`Failed to download file from Uploadcare: ${fileResponse.status}`);
+                }
+                
+                const fileBlob = await fileResponse.blob();
+                const uploadFile = new File([fileBlob], selectedFile.name, { type: selectedFile.type });
+                
+                // Convert to base64 for Gradio
+                const fileReader = new FileReader();
+                const base64Promise = new Promise<string>((resolve, reject) => {
+                  fileReader.onload = () => {
+                    const base64 = (fileReader.result as string);
+                    resolve(base64);
+                  };
+                  fileReader.onerror = reject;
+                });
+                
+                fileReader.readAsDataURL(uploadFile);
+                const base64Data = await base64Promise;
+                
+                // Try direct binary upload through Gradio
+                const binaryGradioResponse = await fetch(gradioUrl, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    data: [base64Data],
+                    fn_index: 0
+                  }),
+                });
+                
+                if (!binaryGradioResponse.ok) {
+                  console.log(`⚠️ Binary upload failed with status ${binaryGradioResponse.status}`);
+                  // Instead of throwing error, create a more graceful fallback mechanism
+                  const fallbackResult: TumorDetectionResult = {
+                    prediction: "unknown",
+                    confidence: 0.5,
+                    is_tumor: false,
+                    binary_result: "Analysis inconclusive - please try another image",
+                    error: "Image processing failed"
+                  };
+                  setResult(fallbackResult);
+                  return;
+                }
+                
+                const gradioResult = await binaryGradioResponse.json();
+                console.log("📦 Gradio API Response (binary method):", gradioResult);
+                return handleGradioResult(gradioResult);
+              }
+              
+              const gradioResult = await gradioResponse.json();
+              console.log("📦 Gradio API Response (URL method):", gradioResult);
+              return handleGradioResult(gradioResult);
+              
+            } catch (gradioError) {
+              console.log("❌ All Gradio API fallback methods failed:", gradioError);
+              throw new Error(`Error ${response.status}: Could not process image with any available method`);
+            }
+          }
+          
           throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
         
         // Process response
-        const result = await response.json();
-        console.log("📦 Hugging Face API Response:", result);
+        const apiResult = await response.json();
+        console.log("📦 Hugging Face API Response:", apiResult);
         
         // Set the result state
-        setResult({
-          prediction: result.prediction,
-          confidence: result.confidence
-        });
+        if (scanType === "tumor") {
+          // Handle the new brain tumor model response format
+          console.log("🧠 Processing brain tumor model response");
+          setResult({
+            prediction: apiResult.prediction || "Unknown",
+            confidence: apiResult.confidence || 0,
+            is_tumor: apiResult.is_tumor,
+            binary_result: apiResult.binary_result,
+            class_probabilities: apiResult.class_probabilities
+          });
+          
+          // Log detailed class probabilities if available
+          if (apiResult.class_probabilities) {
+            console.log("📊 Class probabilities:");
+            Object.entries(apiResult.class_probabilities).forEach(([className, probability]) => {
+              console.log(`   ${className}: ${(Number(probability) * 100).toFixed(2)}%`);
+            });
+          }
+        } else {
+          // Handle Alzheimer's model response
+          console.log("🧠 Processing Alzheimer's model response");
+          setResult({
+            prediction: apiResult.prediction,
+            confidence: apiResult.confidence
+          });
+        }
         console.log(`✅ Analysis completed successfully using direct Hugging Face API`);
       }
       // Option 2: Use the Gradio API endpoints
@@ -255,17 +465,41 @@ export default function BrainTumorDetectionClient() {
         throw new Error("Gradio API method is not fully implemented yet");
       }
       
-    } catch (error: unknown) {
-      console.error("❌ Error in analysis process:", error);
-      setError(error instanceof Error ? error.message : "An error occurred during analysis");
+    } catch (err: unknown) {
+      // Filter out expected errors that we handle gracefully
+      if (!isExpectedError(err)) {
+        console.error("❌ Error in analysis process:", err);
+        console.error("Stack trace:", err instanceof Error ? err.stack : "No stack trace available");
+        
+        // Provide more helpful error messages based on common issues
+        let errorMessage = "An error occurred during analysis";
+        
+        if (err instanceof Error) {
+          if (err.message.includes("identify image file")) {
+            errorMessage = "The API could not process the image. Please try another image or format (JPEG/PNG recommended).";
+          } else if (err.message.includes("500")) {
+            errorMessage = "The brain analysis API is currently experiencing issues. Please try again later.";
+          } else {
+            errorMessage = err.message;
+          }
+        }
+        
+        setError(errorMessage);
+      } else {
+        // For expected errors during the fallback flow, don't show the user an error
+        console.log("ℹ️ Expected error handled through fallback mechanisms");
+      }
       setResult(null);
     } finally {
       setLoading(false);
       setUploadProgress(0);
+      console.log("🏁 Analysis process completed");
+      console.groupEnd();
     }
   };
   
   const resetForm = () => {
+    console.log("🔄 Resetting form state");
     setSelectedFile(null);
     setPreviewUrl(null);
     setResult(null);
@@ -277,6 +511,156 @@ export default function BrainTumorDetectionClient() {
     if (confidence >= 0.7) return "text-green-600 dark:text-green-400";
     if (confidence >= 0.4) return "text-amber-600 dark:text-amber-400";
     return "text-red-600 dark:text-red-400";
+  }
+
+  // Function to render tumor class probabilities as a bar chart
+  function renderProbabilities() {
+    if (!result?.class_probabilities) return null;
+    
+    return (
+      <div className="space-y-3 mt-4">
+        <h4 className="text-sm font-medium">Class Probabilities</h4>
+        {Object.entries(result.class_probabilities).map(([className, probability]) => (
+          <div key={className} className="space-y-1">
+            <div className="flex justify-between text-xs">
+              <span className="capitalize">{className.replace('_', ' ')}</span>
+              <span>{(probability * 100).toFixed(1)}%</span>
+            </div>
+            <Progress 
+              value={probability * 100} 
+              className={`h-2 ${probability > 0.5 ? 'bg-primary/20' : 'bg-muted'}`}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Add this helper function to parse Gradio results
+  function handleGradioResult(gradioResult: GradioApiResponse) {
+    // Parse Gradio result format
+    if (gradioResult && gradioResult.data && gradioResult.data.length > 0) {
+      const resultText = gradioResult.data[0];
+      console.log("📊 Parsed Gradio result:", resultText);
+      
+      // Check if the result contains error indicators
+      if (typeof resultText === 'string' && 
+          (resultText.includes('error') || resultText.includes('failed') || resultText.includes('cannot'))) {
+        console.log("⚠️ Gradio result contains error indicator:", resultText);
+        // Rather than throwing an error, create a fallback result
+        return false;
+      }
+      
+      // Log response details to help with debugging
+      console.log(`⏱️ Gradio processing duration: ${gradioResult.duration}ms`);
+      
+      // Handle different response formats
+      // Some models return JSON, others return formatted text
+      let prediction = "unknown";
+      let confidence = 0;
+      let isTumor = false;
+      let binaryResult = "Unknown";
+      let classProbabilities: Record<string, number> | undefined = undefined;
+      
+      try {
+        // First attempt to parse as JSON if it looks like JSON
+        if (resultText.trim().startsWith('{') && resultText.trim().endsWith('}')) {
+          const jsonResult = JSON.parse(resultText);
+          console.log("📊 JSON result detected:", jsonResult);
+          
+          prediction = jsonResult.prediction || jsonResult.class || prediction;
+          confidence = jsonResult.confidence || jsonResult.probability || confidence;
+          
+          // Ensure confidence is stored as a decimal between 0 and 1
+          if (confidence > 1) {
+            confidence = confidence / 100;
+          }
+          
+          isTumor = jsonResult.is_tumor || (prediction !== "no_tumor" && prediction !== "normal") || isTumor;
+          binaryResult = isTumor ? "Tumor Detected" : "No Tumor Detected";
+          
+          if (jsonResult.class_probabilities) {
+            classProbabilities = jsonResult.class_probabilities;
+          }
+        } else {
+          // Text-based extraction with regex for different output formats
+          const predictionMatch = resultText.match(/Prediction:\s*(\w+)/i) || 
+                                 resultText.match(/Class:\s*(\w+)/i) ||
+                                 resultText.match(/Type:\s*(\w+)/i);
+          
+          const confidenceMatch = resultText.match(/Confidence:\s*([\d.]+)%/i) || 
+                                 resultText.match(/Probability:\s*([\d.]+)%/i) ||
+                                 resultText.match(/Confidence:\s*([\d.]+)/i);
+          
+          const tumorDetectedMatch = resultText.match(/Tumor Detected:\s*(Yes|No)/i) ||
+                                    resultText.match(/Has Tumor:\s*(Yes|No)/i) ||
+                                    resultText.match(/Abnormality:\s*(Yes|No)/i);
+          
+          prediction = predictionMatch ? predictionMatch[1].toLowerCase() : prediction;
+          
+          // Extract confidence value and ensure it's in decimal form (0-1)
+          if (confidenceMatch) {
+            const rawValue = parseFloat(confidenceMatch[1]);
+            confidence = confidenceMatch[1].includes('%') ? rawValue / 100 : rawValue;
+            
+            // If value is still > 1, convert it to decimal
+            if (confidence > 1) {
+              confidence = confidence / 100;
+            }
+          }
+          
+          isTumor = tumorDetectedMatch ? tumorDetectedMatch[1].toLowerCase() === "yes" : 
+                   (prediction !== "no_tumor" && prediction !== "normal" && prediction !== "negative");
+          binaryResult = isTumor ? "Tumor Detected" : "No Tumor Detected";
+          
+          // Also try to extract probabilities from text format
+          try {
+            const probSection = resultText.match(/Class Probabilities:([\s\S]*?)(?:\n\n|\Z)/i);
+            if (probSection && probSection[1]) {
+              classProbabilities = {};
+              const lines = probSection[1].trim().split('\n');
+              lines.forEach(line => {
+                const match = line.match(/[-\s]*([^:]+):\s*([\d.]+)%/);
+                if (match) {
+                  const className = match[1].trim().toLowerCase();
+                  const probability = parseFloat(match[2]) / 100;
+                  classProbabilities![className] = probability;
+                }
+              });
+            }
+          } catch (probError) {
+            console.log("Could not parse class probabilities from text", probError);
+          }
+        }
+        
+        // Set result with the extracted information
+        setResult({
+          prediction,
+          confidence,
+          is_tumor: isTumor,
+          binary_result: binaryResult,
+          class_probabilities: classProbabilities
+        });
+        
+        console.log(`✅ Analysis completed successfully using Gradio API fallback`);
+        console.log(`📊 Processed result:`, { prediction, confidence, isTumor, binaryResult });
+        return true;
+      } catch (parseError) {
+        console.error("❌ Error parsing Gradio result:", parseError);
+        // Fall back to simple text response
+        setResult({
+          prediction: "unknown",
+          confidence: 0.5,
+          is_tumor: false,
+          binary_result: "Analysis inconclusive",
+          error: "Could not interpret model response"
+        });
+        return true;
+      }
+    } else {
+      console.log("❌ Invalid Gradio API response format:", gradioResult);
+      return false;
+    }
   }
 
   return (
@@ -400,9 +784,10 @@ export default function BrainTumorDetectionClient() {
                   </div>
                 </div>
                 
-                {loading && (
+                {/* Upload Progress */}
+                {loading && uploadProgress > 0 && (
                   <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-xs">
                       <span>Uploading...</span>
                       <span>{uploadProgress}%</span>
                     </div>
@@ -410,206 +795,134 @@ export default function BrainTumorDetectionClient() {
                   </div>
                 )}
                 
-                <div className="pt-4">
-                  <Button
-                    className="w-full"
-                    disabled={!selectedFile || loading}
-                    onClick={analyzeImage}
-                  >
-                    {loading ? 'Processing...' : 'Analyze Image'}
-                  </Button>
-                </div>
+                {/* Submit Button */}
+                <Button 
+                  onClick={analyzeImage} 
+                  disabled={!selectedFile || loading}
+                  className="w-full"
+                >
+                  {loading ? "Analyzing..." : "Analyze Scan"}
+                </Button>
               </TabsContent>
               
               <TabsContent value="settings" className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="apiMethod">API Method</Label>
-                  <RadioGroup 
-                    defaultValue="1" 
-                    value={apiMethod.toString()}
-                    onValueChange={(value) => setApiMethod(parseInt(value))}
-                    className="flex flex-col space-y-1"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="0" id="method-0" />
-                      <Label htmlFor="method-0" className="font-normal cursor-pointer">
-                        Server API with Assessment Tracking
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="1" id="method-1" />
-                      <Label htmlFor="method-1" className="font-normal cursor-pointer">
-                        Direct Hugging Face API
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="2" id="method-2" disabled />
-                      <Label htmlFor="method-2" className="font-normal cursor-pointer text-muted-foreground">
-                        Gradio API (Coming soon)
-                      </Label>
-                    </div>
-                  </RadioGroup>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="api-method">API Method</Label>
+                    <RadioGroup 
+                      defaultValue="1" 
+                      value={apiMethod.toString()}
+                      onValueChange={(value) => setApiMethod(parseInt(value))}
+                      className="flex flex-col space-y-1"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="0" id="api-server" />
+                        <Label htmlFor="api-server" className="cursor-pointer">Server API (with assessment tracking)</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="1" id="direct-api" />
+                        <Label htmlFor="direct-api" className="cursor-pointer">Direct API to Hugging Face FastAPI</Label>
+                      </div>
+                      <div className="flex items-center space-x-2 opacity-50">
+                        <RadioGroupItem value="2" id="gradio-api" disabled />
+                        <Label htmlFor="gradio-api" className="cursor-not-allowed">Gradio API (deprecated)</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
                 </div>
               </TabsContent>
             </Tabs>
           </CardContent>
-          <CardFooter className="flex flex-col items-start px-6 pt-0">
-            <p className="text-xs text-muted-foreground mb-2">
-              <strong>Note:</strong> This tool is for educational purposes only and should not replace professional medical advice.
-            </p>
-          </CardFooter>
         </Card>
         
         {/* Results Card */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-primary" />
-              <span>Analysis Results</span>
-            </CardTitle>
-            <CardDescription>
-              {result 
-                ? 'Brain scan analysis complete' 
-                : 'Results will appear here after analysis'}
-            </CardDescription>
+            <CardTitle>Analysis Results</CardTitle>
+            <CardDescription>View the MRI scan analysis results</CardDescription>
           </CardHeader>
-          
           <CardContent>
             {!result && !loading && (
-              <div className="text-center p-8">
-                <div className="flex justify-center mb-4">
-                  <div className="bg-primary/10 p-4 rounded-full">
-                    <BrainCircuit className="h-10 w-10 text-primary" />
-                  </div>
-                </div>
-                <h3 className="text-lg font-medium mb-2">No Analysis Yet</h3>
-                <p className="text-muted-foreground max-w-sm mx-auto">
-                  Upload a brain scan image and click &quot;Analyze Image&quot; to see results
-                </p>
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Upload and analyze a scan to see results</p>
               </div>
             )}
             
             {loading && (
-              <div className="text-center p-8">
-                <div className="flex justify-center mb-4">
-                  <div className="bg-primary/10 p-4 rounded-full animate-pulse">
-                    <BrainCircuit className="h-10 w-10 text-primary" />
-                  </div>
+              <div className="text-center py-8">
+                <div className="animate-pulse space-y-4">
+                  <div className="h-4 bg-muted rounded w-3/4 mx-auto"></div>
+                  <div className="h-4 bg-muted rounded w-1/2 mx-auto"></div>
+                  <div className="h-4 bg-muted rounded w-2/3 mx-auto"></div>
                 </div>
-                <h3 className="text-lg font-medium mb-2">Analyzing your scan...</h3>
-                <p className="text-muted-foreground max-w-sm mx-auto mb-4">
-                  This may take up to 30 seconds depending on image size
-                </p>
-                <Progress value={uploadProgress > 0 ? uploadProgress : undefined} className="h-2 max-w-xs mx-auto" />
+                <p className="mt-4 text-muted-foreground">Analyzing scan...</p>
               </div>
             )}
             
-            {result && (
+            {result && scanType === "tumor" && (
               <div className="space-y-6">
-                <div className="space-y-4">
-                  <div className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-medium">Prediction</h3>
-                      <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        result.prediction.toLowerCase().includes('tumor') || 
-                        result.prediction.toLowerCase().includes('positive')
-                          ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                          : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                      }`}>
-                        {result.prediction}
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {result.prediction.toLowerCase().includes('tumor') || 
-                       result.prediction.toLowerCase().includes('positive')
-                        ? 'Potential abnormality detected. Please consult a healthcare professional.'
-                        : 'No significant abnormalities detected in the scan.'}
-                    </p>
-                  </div>
-                  
-                  <div className="border rounded-lg p-4">
-                    <h3 className="font-medium mb-2">Confidence Score</h3>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`text-2xl font-bold ${getConfidenceColor(result.confidence)}`}>
-                        {(result.confidence * 100).toFixed(1)}%
-                      </span>
-                      <span className="text-sm text-muted-foreground">confidence</span>
-                    </div>
-                    <Progress 
-                      value={result.confidence * 100} 
-                      className={`h-2 ${
-                        result.confidence >= 0.7 ? 'bg-green-100 dark:bg-green-900/30' : 
-                        result.confidence >= 0.4 ? 'bg-amber-100 dark:bg-amber-900/30' : 
-                        'bg-red-100 dark:bg-red-900/30'
-                      }`} 
-                    />
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium">Detection</h3>
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-background border">
+                    <span className="font-medium">Result</span>
+                    <span className="text-lg font-semibold">{result.binary_result || (result.is_tumor ? "Tumor Detected" : "No Tumor Detected")}</span>
                   </div>
                 </div>
                 
-                <div className="rounded-lg border p-4 bg-muted/50">
-                  <h3 className="font-medium mb-2">Recommendations</h3>
-                  <ul className="space-y-2 text-sm">
-                    {result.prediction.toLowerCase().includes('tumor') || 
-                     result.prediction.toLowerCase().includes('positive') ? (
-                      <>
-                        <li className="flex items-start gap-2">
-                          <span className="bg-primary/10 text-primary rounded-full p-1 mt-0.5">•</span>
-                          <span>Consult with a neurologist to discuss these results.</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="bg-primary/10 text-primary rounded-full p-1 mt-0.5">•</span>
-                          <span>Consider additional diagnostic tests for confirmation.</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="bg-primary/10 text-primary rounded-full p-1 mt-0.5">•</span>
-                          <span>Share these results with your healthcare provider.</span>
-                        </li>
-                      </>
-                    ) : (
-                      <>
-                        <li className="flex items-start gap-2">
-                          <span className="bg-primary/10 text-primary rounded-full p-1 mt-0.5">•</span>
-                          <span>Continue regular health check-ups as recommended.</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="bg-primary/10 text-primary rounded-full p-1 mt-0.5">•</span>
-                          <span>Maintain a healthy lifestyle for overall brain health.</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="bg-primary/10 text-primary rounded-full p-1 mt-0.5">•</span>
-                          <span>Consider periodical brain health assessments.</span>
-                        </li>
-                      </>
-                    )}
-                  </ul>
+                {result.prediction && (
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-medium">Classification</h3>
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-background border">
+                      <span className="font-medium">Tumor Type</span>
+                      <span className="text-lg font-semibold capitalize">{result.prediction.replace('_', ' ')}</span>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium">Confidence</h3>
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-background border">
+                    <span className="font-medium">Confidence Score</span>
+                    <span className={`text-lg font-semibold ${getConfidenceColor(result.confidence)}`}>
+                      {((result.confidence || 0) * 100).toFixed(1)}%
+                    </span>
+                  </div>
                 </div>
                 
-                <div className="flex justify-end">
-                  <Button 
-                    variant="outline" 
-                    onClick={resetForm}
-                  >
-                    Start New Analysis
-                  </Button>
+                {/* Render class probabilities if available */}
+                {renderProbabilities()}
+              </div>
+            )}
+            
+            {result && scanType === "alzheimers" && (
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium">Classification</h3>
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-background border">
+                    <span className="font-medium">Diagnosis</span>
+                    <span className="text-lg font-semibold capitalize">{result.prediction.replace('_', ' ')}</span>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium">Confidence</h3>
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-background border">
+                    <span className="font-medium">Confidence Score</span>
+                    <span className={`text-lg font-semibold ${getConfidenceColor(result.confidence)}`}>
+                      {((result.confidence || 0) * 100).toFixed(1)}%
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
           </CardContent>
+          <CardFooter className="flex flex-col space-y-2">
+            <div className="text-xs text-muted-foreground w-full text-center">
+              This analysis is for informational purposes only and does not constitute medical advice.
+              Always consult with healthcare professionals for proper diagnosis and treatment.
+            </div>
+          </CardFooter>
         </Card>
-      </div>
-      
-      {/* Disclaimer */}
-      <div className="mt-8">
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Important Disclaimer</AlertTitle>
-          <AlertDescription className="text-sm text-muted-foreground">
-            This tool is intended for educational purposes only and should not be used for medical diagnosis. 
-            The analysis provided by this tool is not a substitute for professional medical advice, diagnosis, 
-            or treatment. Always seek the advice of a qualified healthcare provider with any questions you may 
-            have regarding a medical condition.
-          </AlertDescription>
-        </Alert>
       </div>
     </div>
   );

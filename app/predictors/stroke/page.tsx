@@ -46,6 +46,10 @@ interface StrokePredictionResult {
   prediction: string;
   stroke_prediction: number;
   using_model: boolean;
+  risk_factors?: string[];
+  execution_time_ms?: number;
+  model_version?: string;
+  error?: string;
 }
 
 export default function StrokePredictorPage() {
@@ -69,38 +73,292 @@ export default function StrokePredictorPage() {
     },
   });
 
+  // Verify all form data is complete
+  function verifyFormData(values: z.infer<typeof formSchema>): boolean {
+    if (!values.gender || !values.ever_married || !values.work_type || 
+        !values.Residence_type || !values.smoking_status) {
+      return false;
+    }
+    
+    if (!values.age || values.age <= 0 || values.age > 120) {
+      return false;
+    }
+    
+    if (!values.avg_glucose_level || values.avg_glucose_level <= 0) {
+      return false;
+    }
+    
+    if (!values.bmi || values.bmi <= 0 || values.bmi > 100) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  // Add back the calculateClientRiskFactors function
+  function calculateClientRiskFactors(values: z.infer<typeof formSchema>): string[] {
+    const riskFactors: string[] = [];
+    
+    // Age is a major risk factor
+    if (values.age > 75) {
+      riskFactors.push("Advanced age (75+)");
+    } else if (values.age > 65) {
+      riskFactors.push("Senior age (65+)");
+    } else if (values.age > 55) {
+      riskFactors.push("Higher age risk (55+)");
+    }
+    
+    // Medical conditions
+    if (values.hypertension) {
+      riskFactors.push("Hypertension");
+    }
+    
+    if (values.heart_disease) {
+      riskFactors.push("Heart disease");
+    }
+    
+    // High glucose level
+    if (values.avg_glucose_level > 180) {
+      riskFactors.push("Very high glucose levels");
+    } else if (values.avg_glucose_level > 140) {
+      riskFactors.push("Elevated glucose levels");
+    }
+    
+    // BMI
+    if (values.bmi > 35) {
+      riskFactors.push("Class II obesity (BMI > 35)");
+    } else if (values.bmi > 30) {
+      riskFactors.push("Class I obesity (BMI > 30)");
+    } else if (values.bmi > 25) {
+      riskFactors.push("Overweight (BMI > 25)");
+    }
+    
+    // Smoking status
+    if (values.smoking_status === "smokes") {
+      riskFactors.push("Current smoker");
+    } else if (values.smoking_status === "formerly smoked") {
+      riskFactors.push("Former smoker");
+    }
+    
+    // Other factors
+    if (values.gender === "Male") {
+      riskFactors.push("Male gender");
+    }
+    
+    return riskFactors;
+  }
+
+  // Fix onSubmit function to properly format data for the API
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
+    setResult(null);
     setError(null);
-
+    
+    console.group("🧠 Stroke Risk Assessment Process");
+    console.log("🚀 Starting stroke risk analysis...");
+    
     try {
-      // Convert boolean values to 0/1 for API
-      const apiValues = {
-        ...values,
+      // Verify all form data is complete
+      if (!verifyFormData(values)) {
+        setError("Please fill in all required fields with valid values");
+        console.error("❌ Form validation failed");
+        setLoading(false);
+        return;
+      }
+      
+      console.log("📋 User form data:", values);
+      
+      // Format payload for the API - Convert boolean values to 0/1 integers
+      const payload = {
+        gender: values.gender,
+        age: Number(values.age),
         hypertension: values.hypertension ? 1 : 0,
         heart_disease: values.heart_disease ? 1 : 0,
-      };
-
-      const response = await fetch('https://abdullah1211-ml-stroke.hf.space', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(apiValues),
+        ever_married: values.ever_married,
+        work_type: values.work_type,
+        Residence_type: values.Residence_type,
+        avg_glucose_level: Number(values.avg_glucose_level),
+        bmi: Number(values.bmi),
+        smoking_status: values.smoking_status
+      } as const;
+      
+      console.log("🚀 Sending payload to API:", payload);
+      
+      // Update the API call to format data correctly for the server
+      const apiUrl = 'https://abdullah1211-ml-stroke.hf.space/api/predict';
+      console.log(`🔗 API URL: ${apiUrl}`);
+      
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      Object.entries(payload).forEach(([key, value]) => {
+        queryParams.append(key, value.toString());
       });
-
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      
+      // Log what we're sending
+      console.log("📤 Query params:", queryParams.toString());
+      
+      const requestStartTime = Date.now();
+      
+      try {
+        // Try direct GET request with query parameters first (most compatible with FastAPI)
+        const getUrl = `${apiUrl}?${queryParams.toString()}`;
+        console.log("🔄 Attempting GET request with URL parameters:", getUrl);
+        
+        const getResponse = await fetch(getUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
+        
+        if (getResponse.ok) {
+          console.log("✅ GET request with URL parameters succeeded");
+          const getResponseDuration = ((Date.now() - requestStartTime) / 1000).toFixed(2);
+          console.log(`⚡ API response received in ${getResponseDuration}s`);
+          console.log(`📡 Response status: ${getResponse.status} ${getResponse.statusText}`);
+          console.log(`📡 Response headers:`, Object.fromEntries([...getResponse.headers.entries()]));
+          
+          const data = await getResponse.json();
+          console.log("📦 API Response data:", data);
+          
+          // Handle response as before
+          processApiResponse(data, values);
+          return;
+        } else {
+          console.log("⚠️ GET request failed, trying POST with form data...");
+        }
+        
+        // Create FormData for POST approach
+        const formData = new FormData();
+        Object.entries(payload).forEach(([key, value]) => {
+          formData.append(key, value.toString());
+        });
+        
+        console.log("📤 Form data being sent:", Array.from(formData.entries()).map(([k, v]) => `${k}=${v}`).join(', '));
+        
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Origin': window.location.origin,
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: formData,
+        });
+        
+        const requestDuration = ((Date.now() - requestStartTime) / 1000).toFixed(2);
+        console.log(`⚡ API response received in ${requestDuration}s`);
+        console.log(`📡 Response status: ${response.status} ${response.statusText}`);
+        console.log(`📡 Response headers:`, Object.fromEntries([...response.headers.entries()]));
+        
+        if (!response.ok) {
+          let errorText = "";
+          try {
+            const responseText = await response.text();
+            // Check if it's HTML and extract just the status code if it is
+            if (responseText.includes('<!DOCTYPE html>')) {
+              errorText = `Server error: ${response.status} ${response.statusText}`;
+            } else {
+              errorText = responseText.substring(0, 150) + (responseText.length > 150 ? '...' : '');
+            }
+          } catch {
+            errorText = `Error ${response.status}`;
+          }
+          
+          console.log("❌ API Error Details:", errorText);
+          throw new Error(errorText);
+        }
+        
+        const data = await response.json();
+        console.log("📦 API Response data:", data);
+        
+        processApiResponse(data, values);
+      } catch (networkErr) {
+        console.log("❌ Network error:", networkErr);
+        throw networkErr; // Re-throw to be handled by the outer catch
       }
-
-      const data = await response.json();
-      setResult(data);
-    } catch (err) {
-      console.error('Error predicting stroke risk:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+    } catch (err: unknown) {
+      console.error("❌ Error predicting stroke risk:", err);
+      
+      // Provide a more user-friendly error message
+      let errorMessage = "An unexpected error occurred while analyzing your stroke risk.";
+      
+      if (err instanceof Error) {
+        console.error("❌ Error details:", err.message);
+        
+        if (err.message.includes("404") || err.message.includes("Not Found")) {
+          errorMessage = "The stroke risk prediction service is currently unavailable. Please try again later.";
+        } else if (err.message.includes("Network") || err.message.includes("connection")) {
+          errorMessage = "Network error. Please check your internet connection and try again.";
+        } else if (err.message.includes("timeout") || err.message.includes("timed out")) {
+          errorMessage = "The request timed out. The service might be experiencing high demand. Please try again.";
+        } else if (err.message.includes("Server error")) {
+          errorMessage = "The stroke risk prediction service encountered an error. Our team has been notified.";
+        }
+      }
+      
+      setError(errorMessage);
+      
+      // Create a simple fallback result with risk factors
+      const fallbackResult: StrokePredictionResult = {
+        probability: 0.05,
+        prediction: "Analysis Incomplete",
+        stroke_prediction: 0,
+        using_model: false,
+        risk_factors: calculateClientRiskFactors(values),
+        model_version: "client-fallback-emergency"
+      };
+      
+      setResult(fallbackResult);
     } finally {
       setLoading(false);
+      console.log("🏁 Analysis process completed");
+      console.groupEnd();
     }
+  }
+
+  // Extract response handling to a separate function for reuse
+  function processApiResponse(data: StrokePredictionResult, values: z.infer<typeof formSchema>) {
+    // Check if the response indicates a fallback was used on the server
+    // or if we got any error
+    if (!data.using_model || data.error) {
+      console.warn("⚠️ API used a fallback or returned an error. Consider using client-side fallback.");
+      if (data.error) {
+        console.error("⚠️ API returned an error:", data.error);
+      }
+      
+      // If the server already provided a fallback result, use it
+      // Otherwise we'll use our client-side fallback
+      if (data.prediction && data.probability !== undefined) {
+        console.log("✅ Using server-provided fallback result");
+        
+        // Enhance the fallback result with our risk factors
+        if (!data.risk_factors || data.risk_factors.length === 0) {
+          const clientRiskFactors = calculateClientRiskFactors(values);
+          data.risk_factors = clientRiskFactors;
+          console.log("📊 Added client-calculated risk factors to server result");
+        }
+        
+        setResult(data);
+        return;
+      }
+      
+      throw new Error("API provided incomplete results");
+    }
+    
+    // For verification purposes, log the model metadata
+    if (data.model_version) {
+      console.log(`🤖 Model version: ${data.model_version}`);
+    }
+    if (data.execution_time_ms) {
+      console.log(`⏱️ Execution time: ${data.execution_time_ms}ms`);
+    }
+    if (data.using_model !== undefined) {
+      console.log(`📊 Using ML model: ${data.using_model ? "Yes" : "No - Using fallback"}`);
+    }
+    
+    console.log("✅ Stroke risk assessment completed successfully");
+    setResult(data);
   }
 
   function getRiskColor(prediction: string) {
@@ -132,7 +390,7 @@ export default function StrokePredictorPage() {
         </Alert>
       )}
 
-      {result ? (
+      {result && (
         <Card className="mb-8">
           <CardHeader>
             <CardTitle>Your Stroke Risk Assessment</CardTitle>
@@ -148,6 +406,18 @@ export default function StrokePredictorPage() {
                 <p className="mt-1">Analysis powered by: {result.using_model ? "Machine Learning Model" : "Basic Risk Assessment"}</p>
               </div>
             </div>
+            
+            {/* Display risk factors when available */}
+            {result.risk_factors && result.risk_factors.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-medium">Risk Factors:</h4>
+                <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+                  {result.risk_factors.map((factor, index) => (
+                    <li key={index}>{factor}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             
             <div className="space-y-2">
               <h4 className="font-medium">What this means:</h4>
@@ -166,7 +436,9 @@ export default function StrokePredictorPage() {
             </Button>
           </CardFooter>
         </Card>
-      ) : (
+      )}
+
+      {result === null && (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

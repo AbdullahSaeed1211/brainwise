@@ -1,215 +1,69 @@
-try:
-    import multipart
-    print("python-multipart is installed: ", multipart.__version__)
-except ImportError:
-    print("python-multipart is NOT installed. Installing now...")
-    import subprocess
-    subprocess.check_call(["pip", "install", "python-multipart"])
-    print("python-multipart has been installed")
 
-from fastapi import FastAPI, Request, HTTPException, Form
-from fastapi.middleware.cors import CORSMiddleware
-import numpy as np
 import joblib
-import os
-from typing import Optional
+import pandas as pd
+import numpy as np
+from fastapi import FastAPI, Form, File, UploadFile, Request
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import time
 import json
+from typing import Optional, List, Union
+import uvicorn
 
-app = FastAPI()
+# Load the trained model
+print("Loading model...")
+model_path = "/app/model.joblib"
+import os
+print(f"Model path: {model_path}")
+print(f"Model file exists: {os.path.exists(model_path)}")
+print(f"Model file size: {os.path.getsize(model_path) / 1024:.2f} KB")
+
+try:
+    model_info = joblib.load(model_path)
+    print("Model loaded successfully!")
+    
+    # Access model components
+    pipeline = model_info['model']
+    model = pipeline.named_steps['classifier']
+    print(f"Model details: Type: {type(model)}")
+    
+    # Get preprocessing info
+    numeric_cols = model_info['numeric_cols']
+    categorical_cols = model_info['encoded_cols']
+    print(f"Features: {len(numeric_cols)} numeric features, {len(categorical_cols)} encoded features")
+    
+    # Verify model has predict_proba
+    has_predict_proba = hasattr(model, 'predict_proba')
+    print(f"Model has predict_proba method: {'Yes' if has_predict_proba else 'No'}")
+except Exception as e:
+    print(f"Error loading model: {e}")
+    model_info = None
+
+# Initialize FastAPI
+app = FastAPI(title="Stroke Prediction Model API")
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Risk categories
-RISK_CATEGORIES = {
-    'Very Low Risk': 0.1,
-    'Low Risk': 0.2,
-    'Moderate Risk': 0.4,
-    'High Risk': 0.6,
-    'Very High Risk': 0.8
-}
-
-# Load the model with better error handling
-print("Loading model...")
+# Check if python-multipart is installed
 try:
-    model_path = os.path.join(os.path.dirname(__file__), "model.joblib")
-    print(f"Model path: {model_path}")
-    
-    model_data = joblib.load(model_path)
-    print("Model loaded successfully!")
-    
-    rf_model = model_data.get('model')
-    encoded_cols = model_data.get('encoded_cols', [])
-    numeric_cols = model_data.get('numeric_cols', [])
-    preprocessor = model_data.get('preprocessor')
-    
-    print(f"Model details: {len(numeric_cols)} numeric features, {len(encoded_cols)} encoded features")
-    model_loaded = True
-except Exception as e:
-    print(f"Error loading model: {str(e)}")
-    rf_model = None
-    preprocessor = None
-    encoded_cols = []
-    numeric_cols = []
-    model_loaded = False
+    import multipart
+    print("python-multipart is installed: ", multipart.__version__)
+except ImportError:
+    print("python-multipart is NOT installed")
 
-def get_risk_level(probability):
-    """Get risk level based on probability score"""
-    for category, threshold in RISK_CATEGORIES.items():
-        if probability < threshold:
-            return category
-    return "Very High Risk"
-
-def preprocess_without_pandas(data):
-    """Preprocess input data without using pandas"""
-    # Handle numeric features
-    numeric_features = []
-    for col in numeric_cols:
-        if col == 'age':
-            numeric_features.append(float(data.get('age', 0)))
-        elif col == 'avg_glucose_level':
-            numeric_features.append(float(data.get('avg_glucose_level', 0)))
-        elif col == 'bmi':
-            numeric_features.append(float(data.get('bmi', 0)))
-            
-    # Create input array for categorical processing
-    categorical_input = np.array([[
-        data.get('gender', 'Male'),
-        data.get('hypertension', 0),
-        data.get('heart_disease', 0),
-        data.get('ever_married', 'No'),
-        data.get('work_type', 'Private'),
-        data.get('Residence_type', 'Urban'),
-        data.get('smoking_status', 'never smoked')
-    ]], dtype=object)
-    
-    # Apply preprocessing
-    if preprocessor is not None:
-        try:
-            encoded_features = preprocessor.transform(categorical_input)
-            # Combine numeric and encoded features
-            features = np.concatenate([numeric_features, encoded_features.flatten()])
-            return features.reshape(1, -1)
-        except Exception as e:
-            print(f"Error in preprocessing: {str(e)}")
-            
-    # Return none if preprocessing fails
-    return None
-
-def predict_with_model(features):
-    """Make prediction using the loaded model"""
-    try:
-        if rf_model is not None and features is not None:
-            probabilities = rf_model.predict_proba(features)
-            stroke_probability = probabilities[0, 1]  # Class 1 probability (stroke)
-            risk_level = get_risk_level(stroke_probability)
-            return stroke_probability, risk_level, True
-    except Exception as e:
-        print(f"Error in model prediction: {str(e)}")
-    
-    return None, None, False
-
-def fallback_prediction(data):
-    """Fallback prediction when model fails"""
-    # Count risk factors
-    risk_factors = 0
-    
-    if data.get('hypertension', 0) == 1:
-        risk_factors += 1
-    if data.get('heart_disease', 0) == 1:
-        risk_factors += 1
-    if data.get('age', 0) > 65:
-        risk_factors += 1
-    if data.get('smoking_status', '') == 'smokes':
-        risk_factors += 1
-    if data.get('avg_glucose_level', 0) > 140:
-        risk_factors += 1
-    if data.get('bmi', 0) > 30:
-        risk_factors += 1
-    
-    # Simple logic based on risk factor count
-    if risk_factors == 0:
-        probability = 0.05
-    elif risk_factors == 1:
-        probability = 0.15
-    elif risk_factors == 2:
-        probability = 0.30
-    elif risk_factors == 3:
-        probability = 0.60
-    else:
-        probability = 0.80
-    
-    return probability, get_risk_level(probability)
-
-@app.get("/")
-async def root():
-    """Root endpoint for documentation and health check"""
-    return {
-        "message": "Stroke Prediction API is running",
-        "model_loaded": model_loaded,
-        "usage": "Send a POST request to / with patient data",
-        "example": {
-            "gender": "Male",
-            "age": 67,
-            "hypertension": 1,
-            "heart_disease": 0,
-            "ever_married": "Yes",
-            "work_type": "Private",
-            "Residence_type": "Urban",
-            "avg_glucose_level": 228.69,
-            "bmi": 36.6,
-            "smoking_status": "formerly smoked"
-        },
-        "api_endpoints": {
-            "standard": "POST /",
-            "form_data": "POST /api/predict"
-        }
-    }
-
-@app.post("/")
-async def predict(request: Request):
-    """Make stroke prediction based on input data"""
-    try:
-        data = await request.json()
-        
-        # Try using the model first
-        if model_loaded:
-            # Preprocess the data
-            features = preprocess_without_pandas(data)
-            
-            # Make prediction
-            probability, risk_level, success = predict_with_model(features)
-            
-            if success:
-                return {
-                    "probability": float(probability),
-                    "prediction": risk_level,
-                    "stroke_prediction": int(probability > 0.5),
-                    "using_model": True
-                }
-        
-        # Use fallback if model fails or isn't loaded
-        probability, risk_level = fallback_prediction(data)
-        return {
-            "probability": float(probability),
-            "prediction": risk_level,
-            "stroke_prediction": int(probability > 0.5),
-            "using_model": False
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
-
+# Define prediction endpoints
 @app.post("/api/predict")
-async def predict_from_form(
+async def predict_stroke(
     gender: Optional[str] = Form(None),
-    age: Optional[int] = Form(None),
+    age: Optional[float] = Form(None),
     hypertension: Optional[int] = Form(None),
     heart_disease: Optional[int] = Form(None),
     ever_married: Optional[str] = Form(None),
@@ -217,59 +71,171 @@ async def predict_from_form(
     Residence_type: Optional[str] = Form(None),
     avg_glucose_level: Optional[float] = Form(None),
     bmi: Optional[float] = Form(None),
-    smoking_status: Optional[str] = Form(None),
-    formDataJson: Optional[str] = Form(None)
+    smoking_status: Optional[str] = Form(None)
 ):
-    """API endpoint that accepts form data or JSON string for prediction"""
+    start_time = time.time()
+    
+    # Log the received data
+    form_data = {
+        'gender': gender,
+        'age': age,
+        'hypertension': hypertension,
+        'heart_disease': heart_disease,
+        'ever_married': ever_married,
+        'work_type': work_type,
+        'Residence_type': Residence_type,
+        'avg_glucose_level': avg_glucose_level,
+        'bmi': bmi,
+        'smoking_status': smoking_status
+    }
+    print("Received form data:", form_data)
+    
+    # Process data and fill default values if needed
+    processed_data = {
+        'gender': gender if gender else 'Male',
+        'age': float(age) if age is not None else 0,
+        'hypertension': int(hypertension) if hypertension is not None else 0,
+        'heart_disease': int(heart_disease) if heart_disease is not None else 0,
+        'ever_married': ever_married if ever_married else 'No',
+        'work_type': work_type if work_type else 'Private',
+        'Residence_type': Residence_type if Residence_type else 'Urban',
+        'avg_glucose_level': float(avg_glucose_level) if avg_glucose_level is not None else 0,
+        'bmi': float(bmi) if bmi is not None else 0,
+        'smoking_status': smoking_status if smoking_status else 'never smoked'
+    }
+    print("Processed data for prediction:", processed_data)
+    
+    # Create a DataFrame from the processed data
+    input_df = pd.DataFrame([processed_data])
+    
+    # Prediction with fallback
     try:
-        # Try to use JSON data if provided
-        if formDataJson:
-            try:
-                data = json.loads(formDataJson)
-            except json.JSONDecodeError:
-                raise HTTPException(status_code=400, detail="Invalid JSON in formDataJson")
-        else:
-            # Build data dict from form fields
-            data = {
-                "gender": gender or "Male",
-                "age": age or 0,
-                "hypertension": hypertension or 0,
-                "heart_disease": heart_disease or 0,
-                "ever_married": ever_married or "No",
-                "work_type": work_type or "Private",
-                "Residence_type": Residence_type or "Urban",
-                "avg_glucose_level": avg_glucose_level or 0,
-                "bmi": bmi or 0,
-                "smoking_status": smoking_status or "never smoked"
-            }
-
-        # Try using the model first
-        if model_loaded:
-            # Preprocess the data
-            features = preprocess_without_pandas(data)
-            
-            # Make prediction
-            probability, risk_level, success = predict_with_model(features)
-            
-            if success:
-                return {
-                    "probability": float(probability),
-                    "prediction": risk_level,
-                    "stroke_prediction": int(probability > 0.5),
-                    "using_model": True
-                }
+        if model_info is None:
+            raise ValueError("Model not loaded")
         
-        # Use fallback if model fails or isn't loaded
-        probability, risk_level = fallback_prediction(data)
-        return {
-            "probability": float(probability),
+        # Get prediction from model
+        prediction_proba = pipeline.predict_proba(input_df)[0][1]
+        prediction_binary = pipeline.predict(input_df)[0]
+        
+        # Calculate risk level
+        if prediction_proba < 0.1:
+            risk_level = "Very Low Risk"
+        elif prediction_proba < 0.3:
+            risk_level = "Low Risk"
+        elif prediction_proba < 0.6:
+            risk_level = "Moderate Risk"
+        else:
+            risk_level = "High Risk"
+            
+        # Identify risk factors
+        risk_factors = []
+        if processed_data['hypertension'] == 1:
+            risk_factors.append("Hypertension")
+        if processed_data['heart_disease'] == 1:
+            risk_factors.append("Heart Disease")
+        if processed_data['age'] > 65:
+            risk_factors.append("Advanced Age (65+)")
+        if processed_data['avg_glucose_level'] > 140:
+            risk_factors.append("High Blood Glucose (>140)")
+        if processed_data['bmi'] > 30:
+            risk_factors.append("Obesity (BMI > 30)")
+        if processed_data['smoking_status'] == 'formerly smoked':
+            risk_factors.append("Former Smoker")
+        if processed_data['smoking_status'] == 'smokes':
+            risk_factors.append("Current Smoker")
+        
+        # Return results
+        result = {
+            "probability": float(prediction_proba),
             "prediction": risk_level,
-            "stroke_prediction": int(probability > 0.5),
-            "using_model": False
+            "stroke_prediction": int(prediction_binary),
+            "risk_factors": risk_factors,
+            "using_model": True,
+            "execution_time_ms": (time.time() - start_time) * 1000,
+            "model_version": "stroke-prediction-1.0"
         }
+        
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
+        print("Error in preprocessing:", e)
+        
+        # Fallback risk calculation
+        fallback_probability = 0.05  # Default low risk
+        
+        # Increase risk based on known factors
+        if processed_data['hypertension'] == 1:
+            fallback_probability += 0.1
+            
+        if processed_data['heart_disease'] == 1:
+            fallback_probability += 0.1
+            
+        if processed_data['age'] > 65:
+            fallback_probability += 0.15
+        elif processed_data['age'] > 55:
+            fallback_probability += 0.1
+            
+        if processed_data['avg_glucose_level'] > 180:
+            fallback_probability += 0.1
+        elif processed_data['avg_glucose_level'] > 140:
+            fallback_probability += 0.05
+            
+        if processed_data['bmi'] > 30:
+            fallback_probability += 0.05
+            
+        if processed_data['smoking_status'] == 'smokes':
+            fallback_probability += 0.07
+        elif processed_data['smoking_status'] == 'formerly smoked':
+            fallback_probability += 0.03
+            
+        # Cap at 80%
+        fallback_probability = min(fallback_probability, 0.8)
+        
+        # Determine risk level
+        if fallback_probability < 0.1:
+            risk_level = "Very Low Risk"
+        elif fallback_probability < 0.3:
+            risk_level = "Low Risk"
+        elif fallback_probability < 0.6:
+            risk_level = "Moderate Risk"
+        else:
+            risk_level = "High Risk"
+            
+        # Threshold for binary prediction
+        stroke_prediction = 1 if fallback_probability > 0.5 else 0
+        
+        # Identify risk factors
+        risk_factors = []
+        if processed_data['hypertension'] == 1:
+            risk_factors.append("Hypertension")
+        if processed_data['heart_disease'] == 1:
+            risk_factors.append("Heart Disease")
+        if processed_data['age'] > 65:
+            risk_factors.append("Advanced Age (65+)")
+        if processed_data['avg_glucose_level'] > 140:
+            risk_factors.append("High Blood Glucose (>140)")
+        if processed_data['bmi'] > 30:
+            risk_factors.append("Obesity (BMI > 30)")
+        if processed_data['smoking_status'] == 'formerly smoked':
+            risk_factors.append("Former Smoker")
+        if processed_data['smoking_status'] == 'smokes':
+            risk_factors.append("Current Smoker")
+        
+        result = {
+            "probability": fallback_probability,
+            "prediction": risk_level,
+            "stroke_prediction": stroke_prediction,
+            "risk_factors": risk_factors,
+            "using_model": False,
+            "execution_time_ms": (time.time() - start_time) * 1000,
+            "model_version": "fallback-1.0"
+        }
+    
+    print("Prediction result:", result)
+    return result
 
+@app.get("/")
+async def root():
+    return {"message": "Stroke Prediction API is running! Use /api/predict for predictions."}
+
+# Run the server
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=7860) 
+    uvicorn.run(app, host="0.0.0.0", port=7860)

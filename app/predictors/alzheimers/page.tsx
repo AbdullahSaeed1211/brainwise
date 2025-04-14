@@ -269,12 +269,12 @@ export default function AlzheimersDetectionPage() {
       }
       // Option 2: Use the Gradio API endpoints
       else {
-        const apiEndpoint = "https://abdullah1211-ml-alzheimers.hf.space/process_url";
+        const apiEndpoint = "https://abdullah1211-ml-alzheimers.hf.space/api/predict";
           
         console.log(`🔄 Using Gradio API: Abdullah1211/ml-alzheimers`);
         console.log(`🔗 Gradio API endpoint: ${apiEndpoint}`);
         
-        // Create the request to the process_url endpoint
+        // Create the request to the API endpoint
         const hfStartTime = Date.now();
         const response = await fetch(apiEndpoint, {
           method: 'POST',
@@ -282,7 +282,7 @@ export default function AlzheimersDetectionPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            data: [fileUrl]
+            fileUrl: fileUrl
           }),
         });
         

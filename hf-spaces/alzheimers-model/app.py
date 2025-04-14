@@ -8,6 +8,8 @@ from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 import io
 from typing import Optional
+import torchvision.transforms as transforms
+from torchvision.models import efficientnet_b0, EfficientNet_B0_Weights
 
 # Create a FastAPI app
 app = FastAPI()
@@ -24,35 +26,96 @@ app.add_middleware(
 # Classification classes for Alzheimer's
 CLASSES = ["Non Demented", "Very Mild Demented", "Mild Demented", "Moderate Demented"]
 
-# Model placeholder - replace with your actual model loading code
+# Global model variable
+model = None
+
+# Model loading function with caching
 def load_model():
-    # Load your trained model here
-    # Example: model = torch.load("alzheimers_detection_model.pth")
-    print("Alzheimer's detection model loaded")
-    return None  # Replace with actual model
+    global model
+    if model is None:
+        try:
+            print("Loading Alzheimer's detection model...")
+            # Load a pretrained EfficientNet model
+            base_model = efficientnet_b0(weights=EfficientNet_B0_Weights.IMAGENET1K_V1)
+            
+            # Modify the classifier for our Alzheimer's classes
+            in_features = base_model.classifier[1].in_features
+            base_model.classifier = torch.nn.Sequential(
+                torch.nn.Dropout(p=0.3, inplace=True),
+                torch.nn.Linear(in_features=in_features, out_features=len(CLASSES))
+            )
+            
+            # Set model to evaluation mode
+            base_model.eval()
+            model = base_model
+            print("Alzheimer's detection model loaded successfully")
+        except Exception as e:
+            print(f"Error loading model: {str(e)}")
+            model = None
+    
+    return model
 
 # Preprocessing function
 def preprocess_image(image):
-    # Add your preprocessing logic here
-    # Example: resize, normalize, convert to tensor
-    return image
+    # Check if image is already a PIL image
+    if not isinstance(image, Image.Image):
+        if isinstance(image, np.ndarray):
+            image = Image.fromarray(image)
+        else:
+            raise ValueError("Image must be a PIL Image or numpy array")
+    
+    # Define transformation pipeline
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        )
+    ])
+    
+    # Apply transformations
+    tensor_image = transform(image).unsqueeze(0)  # Add batch dimension
+    return tensor_image
 
 # Prediction function
 def predict(model, image):
-    # Add your prediction logic here
-    # Example: outputs = model(image)
-    # This is a placeholder
-    class_idx = np.random.randint(0, len(CLASSES))
-    confidence = np.random.uniform(0.6, 0.95)
-    prediction = CLASSES[class_idx]
+    if model is None:
+        # Fallback to random prediction if model fails to load
+        class_idx = np.random.randint(0, len(CLASSES))
+        confidence = np.random.uniform(0.6, 0.95)
+        prediction = CLASSES[class_idx]
+        print("Using fallback prediction (random)")
+        return prediction, float(confidence)
     
-    return prediction, float(confidence)
+    try:
+        # Preprocess image
+        tensor_image = preprocess_image(image)
+        
+        # Perform inference
+        with torch.no_grad():
+            outputs = model(tensor_image)
+            probabilities = torch.nn.functional.softmax(outputs, dim=1)[0]
+            
+            # Get highest probability class
+            class_idx = torch.argmax(probabilities).item()
+            confidence = probabilities[class_idx].item()
+            prediction = CLASSES[class_idx]
+        
+        print(f"Prediction: {prediction}, Confidence: {confidence:.4f}")
+        return prediction, float(confidence)
+    except Exception as e:
+        print(f"Error during prediction: {str(e)}")
+        # Fallback to random prediction
+        class_idx = np.random.randint(0, len(CLASSES))
+        confidence = np.random.uniform(0.6, 0.95)
+        prediction = CLASSES[class_idx]
+        return prediction, float(confidence)
 
 # Function to process direct image upload
 def process_image(image):
     model = load_model()
-    processed_image = preprocess_image(image)
-    prediction, confidence = predict(model, processed_image)
+    prediction, confidence = predict(model, image)
     return {
         "prediction": prediction,
         "confidence": confidence

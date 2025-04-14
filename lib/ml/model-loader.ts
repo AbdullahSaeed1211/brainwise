@@ -12,11 +12,11 @@ const isBuild = process.env.NEXT_PHASE === 'build';
 export function getModelEndpoint(modelType: string): string {
   switch (modelType) {
     case 'stroke':
-      return 'https://abdullah1211-ml-stroke.hf.space';
+      return 'https://abdullah1211-ml-stroke.hf.space/api/predict';
     case 'tumor':
-      return 'https://abdullah1211-ml-tumor.hf.space';
+      return 'https://abdullah1211-ml-tumour.hf.space/api/predict';
     case 'alzheimers':
-      return 'https://abdullah1211-ml-alzheimers.hf.space';
+      return 'https://abdullah1211-ml-alzheimers.hf.space/api/predict';
     default:
       throw new Error(`Unknown model type: ${modelType}`);
   }

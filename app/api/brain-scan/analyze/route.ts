@@ -5,8 +5,8 @@ import Assessment from "@/lib/models/Assessment";
 import mongoose from "mongoose";
 
 // URLs for the Hugging Face model APIs
-const TUMOR_DETECTION_API = "https://abdullah1211-ml-tumor.hf.space";
-const ALZHEIMERS_API = "https://abdullah1211-ml-alzheimers.hf.space";
+const TUMOR_DETECTION_API = "https://abdullah1211-ml-tumour.hf.space/api/predict";
+const ALZHEIMERS_API = "https://abdullah1211-ml-alzheimers.hf.space/api/predict";
 
 export const config = {
   api: {

@@ -1,21 +1,23 @@
-FROM python:3.10-slim
+FROM python:3.9-slim
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements first for better caching
 COPY requirements.txt .
+
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application files
 COPY . .
 
-# Expose the port the app runs on
+# Make sure the model directory exists
+RUN mkdir -p /app/samples
+
+# Set up the environment
+ENV PYTHONUNBUFFERED=1
+ENV GRADIO_SERVER_NAME=0.0.0.0
+ENV GRADIO_SERVER_PORT=7860
+
+# Expose the port Gradio runs on
 EXPOSE 7860
 
-# Start the application
+# Command to run the application
 CMD ["python", "app.py"] 

@@ -9,6 +9,7 @@ export async function POST(req: NextRequest) {
     try {
       // Parse request body
       const body = await req.json();
+      console.log('🔍 [API] Received stroke prediction request:', body);
       
       // Validate required fields
       const requiredFields = [
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
       const missingFields = requiredFields.filter(field => !(field in body));
       
       if (missingFields.length > 0) {
+        console.warn(`❌ [API] Missing required fields: ${missingFields.join(', ')}`);
         return NextResponse.json(
           { error: `Missing required fields: ${missingFields.join(', ')}` },
           { status: 400 }
@@ -30,7 +32,7 @@ export async function POST(req: NextRequest) {
       try {
         await preloadModels(['stroke']);
       } catch (error) {
-        console.warn('Failed to preload stroke model:', error);
+        console.warn('❓ [API] Failed to preload stroke model:', error);
         // Continue with prediction - the model loader will handle fallbacks
       }
       
@@ -48,6 +50,8 @@ export async function POST(req: NextRequest) {
         smokingStatus: body.smokingStatus
       };
       
+      console.log('🚀 [API] Calling predictStroke with data:', inputData);
+      
       // Optional parameters
       const options = {
         version: body.version,
@@ -56,6 +60,7 @@ export async function POST(req: NextRequest) {
       
       // Run prediction
       const prediction = await predictStroke(inputData, options);
+      console.log('✅ [API] Prediction result:', prediction);
       
       // Generate recommendations based on risk factors if not already present
       if (prediction.riskFactors && Array.isArray(prediction.riskFactors)) {
@@ -67,11 +72,9 @@ export async function POST(req: NextRequest) {
         const enhancedPrediction = prediction as EnhancedPrediction;
         if (!enhancedPrediction.recommendations) {
           enhancedPrediction.recommendations = generateRecommendations(prediction.riskFactors);
+          console.log('✨ [API] Generated recommendations:', enhancedPrediction.recommendations);
         }
       }
-      
-      // Save the prediction to the database if needed
-      // This would be implemented here
       
       // Log activity for stroke risk calculation
       try {
@@ -102,16 +105,17 @@ export async function POST(req: NextRequest) {
             }
           });
           
-          console.log(`✅ [Stroke Risk] Activity logged for user ${userId}`);
+          console.log(`✅ [API] Activity logged for user ${userId}`);
         }
       } catch (activityError) {
-        console.error("❌ [Stroke Risk] Error logging activity:", activityError);
+        console.error("❌ [API] Error logging activity:", activityError);
         // Don't fail the whole request if activity logging fails
       }
       
+      // Return the prediction result
       return NextResponse.json(prediction);
     } catch (error) {
-      console.error('Stroke prediction error:', error);
+      console.error('❌ [API] Stroke prediction error:', error);
       
       return NextResponse.json(
         { error: 'Failed to process stroke risk prediction' },

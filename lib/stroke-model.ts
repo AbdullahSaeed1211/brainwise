@@ -71,7 +71,7 @@ export async function predictStroke(data: StrokeRiskInput): Promise<PredictionRe
     };
     
     // Call the Hugging Face API
-    const response = await fetch("https://abdullah1211-ml-stroke.hf.space", {
+    const response = await fetch("https://abdullah1211-ml-stroke.hf.space/api/predict", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

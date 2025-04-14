@@ -58,42 +58,70 @@ export async function predictStroke(
   const startTime = Date.now();
   
   try {
+    // Map the frontend data fields to the format expected by the API
+    const apiData = {
+      gender: data.gender,
+      age: data.age,
+      hypertension: data.hypertension,
+      heart_disease: data.heartDisease, // Map to the snake_case field name expected by API
+      ever_married: data.everMarried,
+      work_type: data.workType,
+      Residence_type: data.residenceType, 
+      avg_glucose_level: data.avgGlucoseLevel,
+      bmi: data.bmi,
+      smoking_status: data.smokingStatus
+    };
+    
+    console.log(`🚀 [Stroke Prediction] Making API request with data:`, apiData);
+    
     // Use Hugging Face endpoint directly
     const endpoint = getModelEndpoint('stroke');
     const apiUrl = options?.version ? 
-      `${endpoint}/api/predict?version=${options.version}` : 
-      `${endpoint}/api/predict`;
+      `${endpoint}?version=${options.version}` : 
+      `${endpoint}`;
       
+    console.log(`🚀 [Stroke Prediction] Calling API at: ${apiUrl}`);
+    
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(apiData),
     });
     
     if (!response.ok) {
-      console.error(`API Error: ${response.status} ${response.statusText}`);
+      console.error(`❌ [Stroke Prediction] API Error: ${response.status} ${response.statusText}`);
+      // Try to get error details from response
+      try {
+        const errorText = await response.text();
+        console.error(`Error details: ${errorText}`);
+      } catch {
+        console.error('Could not read error details from response');
+      }
       return predictWithTemporaryModel(data);
     }
     
     const result = await response.json();
     const inferenceTimeMs = Date.now() - startTime;
     
+    console.log(`✅ [Stroke Prediction] API response received:`, result);
+    
     if (result?.prediction && typeof result.probability === 'number') {
       return {
         prediction: result.prediction,
         probability: result.probability,
-        riskFactors: result.riskFactors,
-        modelVersion: result.modelVersion || 'huggingface',
+        riskFactors: result.risk_factors || result.riskFactors,
+        modelVersion: result.model_version || result.modelVersion || 'huggingface',
         inferenceTimeMs
       };
     }
     
     // Fallback to temporary model if API response format is unexpected
+    console.warn(`⚠️ [Stroke Prediction] Unexpected API response format:`, result);
     return predictWithTemporaryModel(data);
   } catch (error) {
-    console.error('Error during stroke prediction:', error);
+    console.error('❌ [Stroke Prediction] Error during stroke prediction:', error);
     return predictWithTemporaryModel(data);
   }
 }
