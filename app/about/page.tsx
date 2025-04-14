@@ -1,9 +1,12 @@
 import React from "react";
 import Link from "next/link";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Brain, Users, BookOpen, HeartPulse, Sparkles } from "lucide-react";
+import { defaultViewport } from "@/lib/meta-config";
+
+export const viewport: Viewport = defaultViewport;
 
 export const metadata: Metadata = {
   title: "About Brainwise | Brain Health Platform",

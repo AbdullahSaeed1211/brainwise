@@ -2,7 +2,7 @@ import { ClerkProvider } from '@clerk/nextjs';
 import { Navbar } from "@/components/navbar";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import { Brain, Github, Twitter, Linkedin } from "lucide-react";
@@ -10,6 +10,13 @@ import { dark } from '@clerk/themes';
 import { Toaster } from 'sonner';
 
 const inter = Inter({ subsets: ["latin"] });
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "white" },
+    { media: "(prefers-color-scheme: dark)", color: "black" },
+  ],
+};
 
 export const metadata: Metadata = {
   title: {
@@ -63,10 +70,6 @@ export const metadata: Metadata = {
     google: "verification_token",
     yandex: "verification_token",
   },
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "white" },
-    { media: "(prefers-color-scheme: dark)", color: "black" },
-  ],
   icons: {
     icon: "/favicon.ico",
   },

@@ -1,5 +1,8 @@
 import { SignUp } from "@clerk/nextjs";
-import { Metadata } from "next";
+import { Metadata, Viewport } from "next";
+import { defaultViewport } from "@/lib/meta-config";
+
+export const viewport: Viewport = defaultViewport;
 
 export const metadata: Metadata = {
   title: "Sign Up | Brainwise",
