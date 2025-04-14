@@ -12,8 +12,56 @@ import { Toaster } from 'sonner';
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Brainwise: Stroke Risk & Brain Health Platform",
-  description: "A comprehensive platform for stroke risk assessment and brain health optimization",
+  title: {
+    default: "Brainwise: Stroke Risk & Brain Health Platform",
+    template: "%s | Brainwise"
+  },
+  description: "A comprehensive platform for stroke risk assessment and brain health optimization with interactive tools and AI-powered analysis",
+  keywords: ["brain health", "stroke risk", "cognitive assessment", "brain training", "AI health", "MRI analysis", "Alzheimer's detection"],
+  authors: [{ name: "Brainwise Team" }],
+  creator: "Brainwise",
+  publisher: "Brainwise",
+  metadataBase: new URL("https://brainwise.pro"),
+  alternates: {
+    canonical: "https://brainwise.pro",
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://brainwise.pro",
+    title: "Brainwise: Complete Brain Health Toolkit",
+    description: "Train, assess, and optimize your brain health with our comprehensive suite of cognitive tools",
+    siteName: "Brainwise",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Brainwise: Complete Brain Health Toolkit",
+    description: "Train, assess, and optimize your brain health with our comprehensive suite of cognitive tools",
+    creator: "@brainwise"
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    }
+  },
+  verification: {
+    google: "verification_token",
+    yandex: "verification_token",
+  },
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "white" },
+    { media: "(prefers-color-scheme: dark)", color: "black" },
+  ],
+  icons: {
+    icon: "/favicon.ico",
+  },
+  manifest: "https://brainwise.pro/site.webmanifest",
 };
 
 export default function RootLayout({
