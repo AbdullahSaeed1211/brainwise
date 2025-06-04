@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next",
+      "config": {
+        "maxLambdaSize": "50mb"
+      }
+    }
+  ],
+  "env": {
+    "NEXT_TELEMETRY_DISABLED": "1",
+    "NODE_ENV": "production"
+  },
+  "regions": ["lhr1"]
+} 

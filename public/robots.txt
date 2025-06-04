@@ -1,0 +1,17 @@
+# Allow all robots to crawl the site
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://brainwise-sigma.vercel.app/sitemap.xml
+
+# Disallow login/auth pages
+Disallow: /login
+Disallow: /sign-in
+Disallow: /sign-up
+Disallow: /register
+Disallow: /api/
+Disallow: /dashboard/
+
+# Crawl-delay to prevent overloading the server
+Crawl-delay: 1 
