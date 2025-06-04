@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' *.clerk.com *.clerk.dev *.hf.space *.brainwise.pro clerk.brainwise.pro https://gradio.s3-us-west-2.amazonaws.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' *.clerk.com *.clerk.dev *.hf.space *.brainwise.pro clerk.brainwise.pro",
               "style-src 'self' 'unsafe-inline' *.hf.space *.clerk.com *.clerk.dev",
               "img-src 'self' data: blob: *.clerk.com *.clerk.dev *.hf.space",
               "font-src 'self' *.hf.space *.clerk.com *.clerk.dev",

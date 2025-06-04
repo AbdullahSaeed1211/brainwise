@@ -4,34 +4,20 @@ import { Brain, ExternalLink, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export default function AlzheimersDetectionPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
-  useEffect(() => {
-    // Load the Gradio script
-    const script = document.createElement('script');
-    script.type = 'module';
-    script.src = 'https://gradio.s3-us-west-2.amazonaws.com/5.16.0/gradio.js';
-    script.onload = () => {
-      setIsLoading(false);
-    };
-    script.onerror = () => {
-      setHasError(true);
-      setIsLoading(false);
-    };
-    document.head.appendChild(script);
+  const handleIframeLoad = () => {
+    setIsLoading(false);
+  };
 
-    return () => {
-      // Cleanup
-      const existingScript = document.querySelector('script[src="https://gradio.s3-us-west-2.amazonaws.com/5.16.0/gradio.js"]');
-      if (existingScript) {
-        document.head.removeChild(existingScript);
-      }
-    };
-  }, []);
+  const handleIframeError = () => {
+    setHasError(true);
+    setIsLoading(false);
+  };
 
   return (
     <div className="container px-4 py-6 md:py-10">
@@ -122,8 +108,8 @@ export default function AlzheimersDetectionPage() {
               </ul>
             </div>
             
-            {/* Main assessment interface */}
-            <div className="border rounded-lg overflow-hidden relative min-h-[600px]">
+            {/* Main assessment interface using iframe */}
+            <div className="border rounded-lg overflow-hidden relative">
               {isLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
                   <div className="text-center space-y-2">
@@ -133,15 +119,18 @@ export default function AlzheimersDetectionPage() {
                 </div>
               )}
               
-              {!hasError && (
-                <div className="w-full" style={{ minHeight: '600px' }}>
-                  <div 
-                    dangerouslySetInnerHTML={{
-                      __html: `<gradio-app src="https://arssite-adap-system-alzheimer-detection-assessm-96b22c3.hf.space" style="width: 100%; height: 600px; display: block;"></gradio-app>`
-                    }}
-                  />
-                </div>
-              )}
+              <iframe
+                src="https://arssite-adap-system-alzheimer-detection-assessm-96b22c3.hf.space"
+                width="100%"
+                height="800"
+                frameBorder="0"
+                title="Alzheimer's Detection Assessment"
+                className="w-full"
+                onLoad={handleIframeLoad}
+                onError={handleIframeError}
+                allow="camera; microphone; clipboard-read; clipboard-write"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"
+              />
             </div>
           </div>
         </CardContent>
