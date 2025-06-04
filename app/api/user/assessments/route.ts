@@ -14,7 +14,7 @@ export const GET = withAuth(async (req: NextRequest, userId: string) => {
     const type = searchParams.get("type") || undefined;
     const limit = parseInt(searchParams.get("limit") || "20", 10);
     
-    await db.connect();
+    await db.ensureConnection();
     
     const query: AssessmentQuery = { userId };
     

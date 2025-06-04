@@ -21,16 +21,16 @@ export default function AlzheimersDetectionPage() {
 
   return (
     <div className="container px-4 py-6 md:py-10">
-      <div className="mb-8 space-y-4">
-        <div className="flex items-center space-x-2">
+        <div className="mb-8 space-y-4">
+          <div className="flex items-center space-x-2">
           <Brain className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold">Alzheimer&apos;s Detection</h1>
-        </div>
-        <p className="text-muted-foreground">
+            <h1 className="text-3xl font-bold">Alzheimer&apos;s Detection</h1>
+          </div>
+          <p className="text-muted-foreground">
           Advanced Alzheimer&apos;s detection and assessment using AI-powered analysis. 
           Upload brain scans or use our interactive assessment tools for comprehensive evaluation.
-        </p>
-      </div>
+          </p>
+        </div>
 
       <div className="mb-6">
         <Card>
@@ -89,13 +89,13 @@ export default function AlzheimersDetectionPage() {
         </Alert>
       )}
 
-      <Card className="mb-8">
-        <CardHeader>
+          <Card className="mb-8">
+            <CardHeader>
           <CardTitle>Alzheimer&apos;s Assessment Interface</CardTitle>
-          <CardDescription>
+              <CardDescription>
             Interactive assessment tools and brain scan analysis for Alzheimer&apos;s detection
-          </CardDescription>
-        </CardHeader>
+              </CardDescription>
+            </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="p-4 border rounded-lg bg-muted">
@@ -131,8 +131,8 @@ export default function AlzheimersDetectionPage() {
                 allow="camera; microphone; clipboard-read; clipboard-write"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"
               />
-            </div>
-          </div>
+                </div>
+              </div>
         </CardContent>
       </Card>
 
@@ -151,25 +151,25 @@ export default function AlzheimersDetectionPage() {
               </div>
               <div className="space-y-2">
                 <h4 className="font-medium">Step 2: Follow Instructions</h4>
-                <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-muted-foreground">
                   Complete the interactive assessment or upload brain scan images as guided by the interface.
-                </p>
-              </div>
+                        </p>
+                      </div>
               <div className="space-y-2">
                 <h4 className="font-medium">Step 3: Review Results</h4>
                 <p className="text-sm text-muted-foreground">
                   Analyze the assessment results including risk indicators and recommendations.
-                </p>
-              </div>
-              <div className="space-y-2">
+                        </p>
+                      </div>
+                    <div className="space-y-2">
                 <h4 className="font-medium">Step 4: Consult Professionals</h4>
                 <p className="text-sm text-muted-foreground">
                   Share results with healthcare professionals for proper medical evaluation.
                 </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                    </div>
+                  </div>
+            </CardContent>
+          </Card>
       </div>
 
       <div className="mt-6 p-4 border rounded-lg bg-amber-50 dark:bg-amber-950/20">
@@ -177,8 +177,8 @@ export default function AlzheimersDetectionPage() {
           <strong>Medical Disclaimer:</strong> This assessment tool is for educational and screening purposes only. 
           Results should not be used for medical diagnosis. Always consult with qualified healthcare 
           professionals and neurologists for proper Alzheimer&apos;s diagnosis and treatment planning.
-        </p>
+          </p>
+        </div>
       </div>
-    </div>
   );
 } 

@@ -45,7 +45,11 @@ export function RecentActivity() {
               <div className="flex-1">
                 <p className="font-medium">{activity.title}</p>
                 <p className="text-sm text-muted-foreground">
-                  {activity.date.toLocaleDateString()}
+                  {activity.date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  })}
                 </p>
               </div>
             </div>

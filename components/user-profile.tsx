@@ -217,7 +217,11 @@ export function UserProfile({ user }: UserProfileProps) {
               <div className="flex flex-wrap justify-center gap-2 md:justify-start">
                 <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
                   <Calendar className="mr-1 h-3 w-3" />
-                  Member since {user.createdAt.toLocaleDateString()}
+                  Member since {user.createdAt.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  })}
                 </span>
                 <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-300">
                   <User className="mr-1 h-3 w-3" />
@@ -270,7 +274,11 @@ export function UserProfile({ user }: UserProfileProps) {
                       <div className="flex-1">
                         <p className="font-medium">Completed Stroke Risk Assessment</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(Date.now() - 86400000 * 14).toLocaleDateString()}
+                          {new Date(Date.now() - 86400000 * 14).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
                         </p>
                       </div>
                     </div>
@@ -281,7 +289,11 @@ export function UserProfile({ user }: UserProfileProps) {
                       <div className="flex-1">
                         <p className="font-medium">Updated Health Metrics</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(Date.now() - 86400000 * 2).toLocaleDateString()}
+                          {new Date(Date.now() - 86400000 * 2).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
                         </p>
                       </div>
                     </div>
@@ -292,7 +304,11 @@ export function UserProfile({ user }: UserProfileProps) {
                       <div className="flex-1">
                         <p className="font-medium">Completed Cognitive Assessment</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(Date.now() - 86400000 * 7).toLocaleDateString()}
+                          {new Date(Date.now() - 86400000 * 7).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
                         </p>
                       </div>
                     </div>
@@ -396,7 +412,11 @@ export function UserProfile({ user }: UserProfileProps) {
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground flex items-center">
                           <Calendar className="mr-1 h-3 w-3" />
-                          {assessment.date.toLocaleDateString()}
+                          {assessment.date.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
                         </span>
                         <Button variant="ghost" size="sm" className="h-8 text-xs">
                           View Details
@@ -457,7 +477,11 @@ export function UserProfile({ user }: UserProfileProps) {
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground flex items-center">
                           <Clock className="mr-1 h-3 w-3" />
-                          {metric.date.toLocaleDateString()}
+                          {metric.date.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
                         </span>
                         <Button variant="ghost" size="sm" className="h-8 text-xs">
                           Update

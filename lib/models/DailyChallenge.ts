@@ -25,8 +25,7 @@ const DailyChallengeSchema = new Schema<IDailyChallenge>(
   {
     date: { 
       type: Date, 
-      required: true,
-      index: true
+      required: true
     },
     title: { 
       type: String, 

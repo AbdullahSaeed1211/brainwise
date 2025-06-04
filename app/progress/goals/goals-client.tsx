@@ -232,7 +232,11 @@ export default function GoalsClient() {
                         <div className="flex justify-between items-center mt-4">
                           <div className="flex items-center text-sm text-muted-foreground">
                             <Calendar className="h-4 w-4 mr-1" />
-                            <span>Target: {goal.targetDate.toLocaleDateString()}</span>
+                            <span>Target: {goal.targetDate.toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })}</span>
                           </div>
                           <Button 
                             size="sm" 

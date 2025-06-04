@@ -16,15 +16,31 @@ export function cn(...inputs: ClassValue[]) {
  * @param options - Intl.DateTimeFormatOptions
  * @returns Formatted date string
  */
-export function formatDate(
-  date: Date,
-  options: Intl.DateTimeFormatOptions = {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
+export function formatDate(date: Date | string, options?: {
+  includeTime?: boolean;
+  short?: boolean;
+}) {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  
+  if (options?.short) {
+    return dateObj.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    });
   }
-): string {
-  return new Intl.DateTimeFormat("en-US", options).format(date);
+  
+  const formatOptions: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  };
+  
+  if (options?.includeTime) {
+    formatOptions.hour = '2-digit';
+    formatOptions.minute = '2-digit';
+  }
+  
+  return dateObj.toLocaleDateString('en-US', formatOptions);
 }
 
 /**

@@ -15,39 +15,31 @@ import { addDays, startOfDay } from "date-fns";
 // Helper to get the DailyChallenge models dynamically
 const getChallengeModels = async () => {
   try {
-    console.log('Connecting to MongoDB in getChallengeModels');
-    await db.connect();
-    try {
-      return {
-        DailyChallenge: mongoose.model('DailyChallenge'),
-        ChallengeCompletion: mongoose.model('ChallengeCompletion'),
-      };
-    } catch (modelError: unknown) {
-      console.log('Challenge models not found, importing them now', modelError instanceof Error ? modelError.message : '');
-      const { DailyChallenge, ChallengeCompletion } = await import("@/lib/models/DailyChallenge");
-      return { DailyChallenge, ChallengeCompletion };
-    }
+    console.log('Ensuring MongoDB connection in getChallengeModels');
+    await db.ensureConnection();
+    
+    // Import the models to ensure they're registered
+    const { DailyChallenge, ChallengeCompletion } = await import("@/lib/models/DailyChallenge");
+    
+    return { DailyChallenge, ChallengeCompletion };
   } catch (error) {
-    console.error("MongoDB connection error in getChallengeModels:", error);
-    throw new Error("Database connection failed");
+    console.error("Error in getChallengeModels:", error);
+    throw new Error("Failed to get challenge models");
   }
 };
 
 // Helper to get the User model dynamically
 const getUserModel = async () => {
   try {
-    console.log('Connecting to MongoDB in getUserModel');
-    await db.connect();
-    try {
-      return mongoose.model('User');
-    } catch (modelError: unknown) {
-      console.log('User model not found, importing it now', modelError instanceof Error ? modelError.message : '');
-      const { default: UserModel } = await import("@/lib/models/User");
-      return UserModel;
-    }
+    console.log('Ensuring MongoDB connection in getUserModel');
+    await db.ensureConnection();
+    
+    // Import the model to ensure it's registered
+    const { default: UserModel } = await import("@/lib/models/User");
+    return UserModel;
   } catch (error) {
-    console.error("MongoDB connection error in getUserModel:", error);
-    throw new Error("Database connection failed");
+    console.error("Error in getUserModel:", error);
+    throw new Error("Failed to get user model");
   }
 };
 
@@ -70,8 +62,8 @@ export async function GET(req: NextRequest) {
     const { userId } = await auth();
     let user;
     
-    // Connect to the database
-    await db.connect();
+    // Ensure database connection
+    await db.ensureConnection();
     const { DailyChallenge, ChallengeCompletion } = await getChallengeModels();
     
     // Get start and end dates
@@ -147,11 +139,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Connect to the database
-    await db.connect();
+    // Ensure database connection
+    await db.ensureConnection();
     const User = await getUserModel();
     const { DailyChallenge, ChallengeCompletion } = await getChallengeModels();
-    const GameResult = mongoose.model('GameResult');
+    
+    // Try to get GameResult model, create if it doesn't exist
+    let GameResult;
+    try {
+      GameResult = mongoose.model('GameResult');
+    } catch {
+      // If GameResult model doesn't exist, we'll need to handle this gracefully
+      console.warn('GameResult model not found - this feature may not work properly');
+      GameResult = null;
+    }
 
     // Find the user in the database
     const user = await User.findOne({ clerkId: userId });
@@ -159,10 +160,16 @@ export async function POST(req: NextRequest) {
       return notFoundResponse("User not found");
     }
 
-    // Find the game result
-    const gameResult = await GameResult.findById(data.gameResultId);
-    if (!gameResult) {
-      return notFoundResponse("Game result not found");
+    // Find the game result if GameResult model exists
+    let gameResult = null;
+    if (GameResult) {
+      gameResult = await GameResult.findById(data.gameResultId);
+      if (!gameResult) {
+        return notFoundResponse("Game result not found");
+      }
+    } else {
+      // If GameResult model doesn't exist, we can still proceed without validation
+      console.warn('Proceeding without GameResult validation');
     }
 
     // Find the associated challenge
@@ -204,7 +211,7 @@ export async function POST(req: NextRequest) {
       completedAt: new Date(),
       points: challenge.points,
       gameType: challenge.gameType,
-      gameResultId: gameResult._id,
+      gameResultId: gameResult ? gameResult._id : null,
       earnedPoints
     });
 

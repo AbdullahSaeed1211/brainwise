@@ -15,10 +15,10 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    // Connect to MongoDB
-    await db.connect();
+    // Ensure database connection
+    await db.ensureConnection();
     
-    if (!mongoose.connection || !mongoose.connection.db) {
+    if (!mongoose.connection.db) {
       throw new Error("Database connection not established");
     }
     
@@ -71,10 +71,10 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    // Connect to MongoDB
-    await db.connect();
+    // Ensure database connection
+    await db.ensureConnection();
     
-    if (!mongoose.connection || !mongoose.connection.db) {
+    if (!mongoose.connection.db) {
       throw new Error("Database connection not established");
     }
     

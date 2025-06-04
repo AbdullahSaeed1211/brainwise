@@ -324,9 +324,9 @@ export default function StrokePredictorPage() {
     }
     
     // Enhance the result with our risk factors if needed
-    if (!data.risk_factors || data.risk_factors.length === 0) {
-      const clientRiskFactors = calculateClientRiskFactors(values);
-      data.risk_factors = clientRiskFactors;
+        if (!data.risk_factors || data.risk_factors.length === 0) {
+          const clientRiskFactors = calculateClientRiskFactors(values);
+          data.risk_factors = clientRiskFactors;
       console.log("📊 Enhanced result with additional risk factors");
     }
     

@@ -16,26 +16,18 @@ import { ICognitiveScore } from "@/lib/models/CognitiveScore";
 
 // Helper to get the CognitiveScore model dynamically
 const getCognitiveScoreModel = async () => {
-  await db.connect();
-  try {
-    return mongoose.model('CognitiveScore');
-  } catch {
-    // If model doesn't exist yet, this will import it
-    const { default: CognitiveScoreModel } = await import("@/lib/models/CognitiveScore");
-    return CognitiveScoreModel;
-  }
+  await db.ensureConnection();
+  // Import the model to ensure it's registered
+  const { default: CognitiveScoreModel } = await import("@/lib/models/CognitiveScore");
+  return CognitiveScoreModel;
 };
 
 // Helper to get the User model dynamically
 const getUserModel = async () => {
-  await db.connect();
-  try {
-    return mongoose.model('User');
-  } catch {
-    // If model doesn't exist yet, this will import it
-    const { default: UserModel } = await import("@/lib/models/User");
-    return UserModel;
-  }
+  await db.ensureConnection();
+  // Import the model to ensure it's registered
+  const { default: UserModel } = await import("@/lib/models/User");
+  return UserModel;
 };
 
 // Define type for query object
@@ -52,8 +44,8 @@ export async function GET(req: NextRequest) {
       return unauthorizedResponse("You must be logged in to access your cognitive scores");
     }
 
-    // Connect to the database
-    await db.connect();
+    // Ensure database connection
+    await db.ensureConnection();
     const User = await getUserModel();
     const CognitiveScore = await getCognitiveScoreModel();
 
@@ -118,8 +110,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Connect to the database
-    await db.connect();
+    // Ensure database connection
+    await db.ensureConnection();
     const User = await getUserModel();
     const CognitiveScore = await getCognitiveScoreModel();
 

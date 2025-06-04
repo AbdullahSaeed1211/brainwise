@@ -30,7 +30,8 @@ import {
   Sheet, 
   SheetContent, 
   SheetTrigger,
-  SheetTitle
+  SheetTitle,
+  SheetDescription
 } from "@/components/ui/sheet";
 import { useState } from "react";
 import {
@@ -84,7 +85,6 @@ const predictorItems = [
 
 // Group analytics and health info
 const insightItems = [
-  { name: "Assessment Report", href: "/assessment-report", icon: <FileText className="h-4 w-4 mr-2" /> },
   { name: "Progress Tracker", href: "/progress", icon: <LineChart className="h-4 w-4 mr-2" /> },
   { name: "Goals", href: "/progress/goals", icon: <Target className="h-4 w-4 mr-2" /> },
   { name: "Brain Health Library", href: "/brain-health", icon: <Library className="h-4 w-4 mr-2" /> },
@@ -217,7 +217,7 @@ export function Navbar() {
                 variant="ghost" 
                 className={cn(
                   "flex items-center gap-1 px-2",
-                  pathname.startsWith("/assessment-report") || pathname.startsWith("/progress") || 
+                  pathname.startsWith("/progress") || 
                   pathname.startsWith("/brain-health") || pathname.startsWith("/research") || 
                   pathname.startsWith("/stroke-prevention") || pathname.startsWith("/health-metrics")
                   ? "text-primary" : "text-muted-foreground"
@@ -307,7 +307,14 @@ export function Navbar() {
               >
                 Profile
               </Link>
-              <UserButton afterSignOutUrl="/" />
+              <UserButton 
+                appearance={{
+                  elements: {
+                    userButtonAvatarBox: "w-6 h-6",
+                  }
+                }}
+                afterSignOutUrl="/"
+              />
             </>
           ) : (
             <>
@@ -338,6 +345,8 @@ export function Navbar() {
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px] pr-0">
               <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+              <SheetDescription>
+              </SheetDescription>
               <div className="flex flex-col h-full">
                 <div className="flex items-center justify-between px-2 mb-6">
                   <Link 
@@ -475,7 +484,14 @@ export function Navbar() {
                 <div className="border-t pt-6 px-2 mt-auto">
                   {isSignedIn ? (
                     <div className="flex items-center mt-4">
-                      <UserButton afterSignOutUrl="/" />
+                      <UserButton 
+                        appearance={{
+                          elements: {
+                            userButtonAvatarBox: "w-6 h-6",
+                          }
+                        }}
+                        afterSignOutUrl="/"
+                      />
                       <span className="ml-2 text-sm text-muted-foreground">Account</span>
                     </div>
                   ) : (
