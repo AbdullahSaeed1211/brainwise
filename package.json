@@ -2,6 +2,7 @@
   "name": "brainwise",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@latest-10",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
